@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2023, Draque Thompson, draquemail@gmail.com
+ * Copyright (c) 2016-2026, Draque Thompson, draquemail@gmail.com
  * All rights reserved.
  *
  * Licensed under: MIT Licence
@@ -223,8 +223,6 @@ public class ScrPrintToHTML extends PDialog {
         jPanel1 = new javax.swing.JPanel();
         txtSavePath = new PTextField(core, true, "Save to File");
         btnSelectSavePath = new PButton(nightMode);
-        txtImageLocation = new PTextField(core, true, "Cover Image");
-        btnSelectImagePath = new PButton(nightMode);
         jLabel4 = new PLabel("");
         jPanel2 = new javax.swing.JPanel();
         chkLocalCon = new PCheckBox(nightMode);
@@ -266,55 +264,44 @@ public class ScrPrintToHTML extends PDialog {
             }
         });
 
-        txtImageLocation.setEditable(false);
-        txtImageLocation.setBackground(new java.awt.Color(204, 204, 204));
-
-        btnSelectImagePath.setText("Select Image...");
-        btnSelectImagePath.setToolTipText("Select the image (if any) to display on the front cover of your HTML");
-        btnSelectImagePath.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                btnSelectImagePathActionPerformed(evt);
-            }
-        });
-
-        jLabel4.setText("Print Options");
+        jLabel4.setText("Export Options");
 
         jPanel2.setBackground(new java.awt.Color(255, 255, 255));
         jPanel2.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
 
         chkLocalCon.setSelected(true);
-        chkLocalCon.setText("Print Local -> Conlang Dictionary");
+        chkLocalCon.setText("Export Local -> Conlang Dictionary");
         chkLocalCon.setToolTipText("Select to include a dictionary with lookup by native words");
 
         chkConLocal.setSelected(true);
-        chkConLocal.setText("Print Conlang -> Local Dictionary");
+        chkConLocal.setText("Export Conlang -> Local Dictionary");
         chkConLocal.setToolTipText("Select to include a dictionary with lookup by constructed words");
 
         chkOrtho.setSelected(true);
-        chkOrtho.setText("Print Orthography");
+        chkOrtho.setText("Export Orthography");
         chkOrtho.setToolTipText("Include character and pronunciation guides");
 
         chkGrammar.setSelected(true);
-        chkGrammar.setText("Print Grammar");
+        chkGrammar.setText("Export Grammar");
         chkGrammar.setToolTipText("Include text from the grammar section of your library");
 
-        chkLogographs.setText("Print Logographs");
+        chkLogographs.setText("Export Logographs");
         chkLogographs.setToolTipText("Coming soon! (if anyone asks for it)");
         chkLogographs.setEnabled(false);
 
         chkGloss.setSelected(true);
-        chkGloss.setText("Print Gloss Key");
-        chkGloss.setToolTipText("Prints a key for part of speech glosses");
+        chkGloss.setText("Export Gloss Key");
+        chkGloss.setToolTipText("Includes a key for part of speech glosses");
 
         chkEtymology.setSelected(true);
-        chkEtymology.setText("Print Etymology Trees");
+        chkEtymology.setText("Export Etymology Trees");
 
-        chkPrintConjugations.setText("Print All Conjugations");
-        chkPrintConjugations.setToolTipText("If checked, words will have a list of all conjugated forms printed under their definitions.");
+        chkPrintConjugations.setText("Export All Conjugations");
+        chkPrintConjugations.setToolTipText("If checked, words will have a list of all conjugated forms included under their definitions.");
 
         chkPrintPhrases.setSelected(true);
-        chkPrintPhrases.setText("Print Phrases");
-        chkPrintPhrases.setToolTipText("Prints a phrasebook section within the HTML");
+        chkPrintPhrases.setText("Export Phrases");
+        chkPrintPhrases.setToolTipText("Includes a phrasebook section within the HTML");
 
         lstChapOrder.setModel(new javax.swing.AbstractListModel<String>() {
             String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
@@ -414,10 +401,6 @@ public class ScrPrintToHTML extends PDialog {
                     .addComponent(jScrollPane2)
                     .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(txtImageLocation)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(btnSelectImagePath))
-                    .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(jLabel4)
                         .addGap(0, 387, Short.MAX_VALUE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
@@ -435,10 +418,6 @@ public class ScrPrintToHTML extends PDialog {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(txtSavePath, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(btnSelectSavePath))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(txtImageLocation, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(btnSelectImagePath))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(txtTitle, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
@@ -461,7 +440,7 @@ public class ScrPrintToHTML extends PDialog {
         });
 
         btnCancel.setText("Cancel");
-        btnCancel.setToolTipText("Cancel without creating HTML Export");
+        btnCancel.setToolTipText("Cancel without creating HTML export");
         btnCancel.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnCancelActionPerformed(evt);
@@ -538,8 +517,7 @@ public class ScrPrintToHTML extends PDialog {
             }
             
             // TODO: Replace bridge with HTML Export
-            PExportToHTML.exportHTML(txtSavePath.getText(), 
-                    txtImageLocation.getText(), 
+            PExportToHTML.exportHTML(txtSavePath.getText(),
                     ((PTextPane)txtForeword).getNakedText(), 
                     chkConLocal.isSelected(), 
                     chkLocalCon.isSelected(), 
@@ -576,23 +554,6 @@ public class ScrPrintToHTML extends PDialog {
         }
     }//GEN-LAST:event_btnPrintActionPerformed
 
-    private void btnSelectImagePathActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSelectImagePathActionPerformed
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Select Logograph Image");
-        FileNameExtensionFilter filter = new FileNameExtensionFilter("Images",
-                "BMP", "bmp", "jpeg", "wbmp", "gif", "GIF", "png", "JPG", "jpg", "WBMP", "JPEG", "PNG");
-        chooser.setFileFilter(filter);
-        String fileName;
-
-        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-            fileName = chooser.getSelectedFile().getAbsolutePath();
-        } else {
-            return;
-        }
-        
-        txtImageLocation.setText(fileName);
-    }//GEN-LAST:event_btnSelectImagePathActionPerformed
-
     private void btnMoveUpActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnMoveUpActionPerformed
         moveOrederUp();
     }//GEN-LAST:event_btnMoveUpActionPerformed
@@ -622,7 +583,6 @@ public class ScrPrintToHTML extends PDialog {
     private javax.swing.JButton btnMoveDown;
     private javax.swing.JButton btnMoveUp;
     private javax.swing.JButton btnPrint;
-    private javax.swing.JButton btnSelectImagePath;
     private javax.swing.JButton btnSelectSavePath;
     private javax.swing.JCheckBox chkConLocal;
     private javax.swing.JCheckBox chkEtymology;
@@ -641,7 +601,6 @@ public class ScrPrintToHTML extends PDialog {
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JList<String> lstChapOrder;
     private javax.swing.JTextPane txtForeword;
-    private javax.swing.JTextField txtImageLocation;
     private javax.swing.JTextField txtSavePath;
     private javax.swing.JTextField txtSubtitle;
     private javax.swing.JTextField txtTitle;

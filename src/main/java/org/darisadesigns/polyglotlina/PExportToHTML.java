@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2016-2026, Draque Thompson, draquemail@gmail.com
+ * All rights reserved.
+ *
+ * Licensed under: MIT Licence
+ * See LICENSE.TXT included with this code to read the full license agreement.
+
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
 package org.darisadesigns.polyglotlina;
 
 import java.io.BufferedWriter;
@@ -8,25 +27,25 @@ import java.nio.file.Paths;
 
 public class PExportToHTML {
 
-    public static void exportHTML(String txtSavePath, String text2, String nakedText, boolean selected, boolean selected2,
-            boolean selected3, String text3, String text4, boolean selected4, boolean selected5, boolean selected6,
-            boolean selected7, boolean selected8, String chapterOrder, DictCore core) throws IOException {
-        // TODO Auto-generated method stub
+    public static void exportHTML(String txtSavePath, String txtForewordNakedTxt, boolean chkConLocal, boolean chkLocalCon, boolean chkOrtho, String txtSubtitle, String txtTitle, boolean chkGloss, boolean chkGrammar, boolean chkEtymology, boolean chkPrintConjugations, boolean chkPrintPhrases, String chapterOrder, DictCore core) throws IOException {
+        Path filePath = Paths.get(txtSavePath);
 
-         Path path = Paths.get(txtSavePath);
-        
-        // try-with-resources sulkee writerin automaattisesti, vaikka tulisi virhe
-        try (BufferedWriter writer = Files.newBufferedWriter(path)) {
+        try (BufferedWriter writer = Files.newBufferedWriter(filePath)) {
             
             // Open the HTML File
             writer.write("<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n");
             writer.write("    <meta charset=\"UTF-8\">\n");
+            // TODO: Proper title based on txtTitle (or lack thereof)
             writer.write("    <title>Conlang Dictionary</title>\n");
-            writer.write("    <style>body{font-family:sans-serif;} .sana{font-weight:bold; color:#2c3e50;} .luokka{font-style:italic; color:#7f8c8d;}</style>\n");
+            // TODO: Styling
+            writer.write("    <style>body{font-family:sans-serif;}</style>\n");
             writer.write("</head>\n<body>\n");
-            writer.write("    <h1>Conlang Dictionary Test File</h1>\n");
+            // TODO: Handle unincluded title, subtitle, foreword
+            writer.write("    <h1>" + txtTitle +"</h1>\n");
+            writer.write("<h2>"+ txtSubtitle + "</h2>");
+            writer.write("<p>" + txtForewordNakedTxt + "</p>");
 
-            // Add data
+            // TODO: Add the real data
             writer.write("    <ul>\n");
             writer.write("    <li>Test1</li>\n");
             writer.write("    <li>Test2</li>\n");
