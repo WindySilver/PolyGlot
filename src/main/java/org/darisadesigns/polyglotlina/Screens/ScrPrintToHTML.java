@@ -1,0 +1,670 @@
+/*
+ * Copyright (c) 2016-2023, Draque Thompson, draquemail@gmail.com
+ * All rights reserved.
+ *
+ * Licensed under: MIT Licence
+ * See LICENSE.TXT included with this code to read the full license agreement.
+
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+package org.darisadesigns.polyglotlina.Screens;
+
+import java.awt.Cursor;
+import java.awt.Desktop;
+import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import javax.swing.DefaultListModel;
+import javax.swing.JCheckBox;
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import org.darisadesigns.polyglotlina.Desktop.CustomControls.DesktopInfoBox;
+import org.darisadesigns.polyglotlina.Desktop.CustomControls.PButton;
+import org.darisadesigns.polyglotlina.Desktop.CustomControls.PCheckBox;
+import org.darisadesigns.polyglotlina.Desktop.CustomControls.PDialog;
+import org.darisadesigns.polyglotlina.Desktop.CustomControls.PLabel;
+import org.darisadesigns.polyglotlina.Desktop.CustomControls.PList;
+import org.darisadesigns.polyglotlina.Desktop.CustomControls.PTextField;
+import org.darisadesigns.polyglotlina.Desktop.CustomControls.PTextPane;
+import org.darisadesigns.polyglotlina.Desktop.DesktopIOHandler;
+import org.darisadesigns.polyglotlina.Desktop.ManagersCollections.DesktopOptionsManager;
+import org.darisadesigns.polyglotlina.Desktop.NonModularBridge;
+import org.darisadesigns.polyglotlina.Desktop.PGTUtil;
+import org.darisadesigns.polyglotlina.Desktop.PolyGlot;
+import org.darisadesigns.polyglotlina.DictCore;
+import org.darisadesigns.polyglotlina.PExportToHTML;
+
+/**
+ *
+ * @author draque.thompson
+ */
+public class ScrPrintToHTML extends PDialog {
+    private final DesktopOptionsManager opMan;
+    
+    /**
+     * Creates new form ScrPrintToHTML
+     * @param _core Dictionary core
+     */
+    public ScrPrintToHTML(DictCore _core) {
+        super(_core);
+        initComponents();
+        
+        opMan = PolyGlot.getPolyGlot().getOptionsManager();
+        
+        chkConLocal.setText("Print " + core.conLabel() + " -> " + core.localLabel() + " Dictionary");
+        chkLocalCon.setText("Print " + core.localLabel() + " -> " + core.conLabel() + " Dictionary");
+        
+        setupSelectedChapters();
+        setupOrderList();
+        setupListeners();
+        lstChapOrder.setFont(PGTUtil.MENU_FONT);
+        setModal(true);
+    }
+
+    @Override
+    public void dispose() {
+        super.dispose();
+        
+        // record options selected
+        var model = (DefaultListModel)lstChapOrder.getModel();
+        opMan.clearPdfPrintChapOrder();
+        for (int i = 0; i < model.getSize(); i++) {
+            var item = (PrintOrderNode)model.get(i);
+            opMan.addPdfPrintChapOrder(item.index);
+        }
+        
+        opMan.setPdfPrintConj(chkPrintConjugations.isSelected());
+        opMan.setPdfPrintConlang(chkConLocal.isSelected());
+        opMan.setPdfPrintEtymology(chkEtymology.isSelected());
+        opMan.setPdfPrintGloss(chkGloss.isSelected());
+        opMan.setPdfPrintGrammar(chkGrammar.isSelected());
+        opMan.setPdfPrintLocalLang(chkLocalCon.isSelected());
+        opMan.setPdfPrintOrth(chkOrtho.isSelected());
+        opMan.setPdfPrintPhrases(chkPrintPhrases.isSelected());
+    }
+
+    private void setupSelectedChapters() {
+        chkPrintConjugations.setSelected(opMan.isPdfPrintConj());
+        chkConLocal.setSelected(opMan.isPdfPrintConlang());
+        chkEtymology.setSelected(opMan.isPdfPrintEtymology());
+        chkGloss.setSelected(opMan.isPdfPrintGloss());
+        chkGrammar.setSelected(opMan.isPdfPrintGrammar());
+        chkLocalCon.setSelected(opMan.isPdfPrintLocalLang());
+        chkOrtho.setSelected(opMan.isPdfPrintOrth());
+        chkPrintPhrases.setSelected(opMan.isPdfPrintPhrases());
+    }
+    
+    private void setupOrderList() {
+        DefaultListModel model = new DefaultListModel();
+        var toAdd = new ArrayList<Integer>(PGTUtil.MAP_PDF_CHAP_TO_LABEL.keySet());
+
+        for (var chap : opMan.getPdfPrintChapOrder()) {
+            toAdd.remove(chap);
+            addChapToModel(model, chap);
+         }
+        
+        // any chapters checked which somehow escaped ordering save
+        for (var chap : toAdd) {
+            addChapToModel(model, chap);
+        }
+        
+        lstChapOrder.setModel(model);
+    }
+    
+    private void addChapToModel(DefaultListModel model, int chap) {
+        var prefix = "";
+        JCheckBox checkBox;
+
+        switch(chap) {
+            case PGTUtil.CHAP_ORTHOGRAPHY -> {
+                checkBox = chkOrtho;
+            }
+            case PGTUtil.CHAP_GLOSSKEY -> {
+                checkBox = chkGloss;
+            }
+            case PGTUtil.CHAP_CONTOLOCAL -> {
+                prefix = core.localLabel();
+                checkBox = chkConLocal;
+            }
+            case PGTUtil.CHAP_LOCALTOCON -> {
+                prefix = core.conLabel();
+                checkBox = chkLocalCon;
+            }
+            case PGTUtil.CHAP_PHRASEBOOK -> {
+                checkBox = chkPrintPhrases;
+            }
+            case PGTUtil.CHAP_GRAMMAR -> {
+                checkBox = chkGrammar;
+            }
+            default -> {
+                // simply ignore unhandled chapters (corrupt ini which will be re-saved on close)
+                return;
+            }
+        }
+
+        model.addElement(new PrintOrderNode(prefix + PGTUtil.MAP_PDF_CHAP_TO_LABEL.get(chap), chap, checkBox));
+    }
+    
+    private void moveOrederUp() {
+        var model = (DefaultListModel)lstChapOrder.getModel();
+        var selectionIndex = lstChapOrder.getSelectedIndex();
+        
+        if (selectionIndex <= 0) {
+            return;
+        }
+        
+        var selectedItem = model.get(selectionIndex);
+        model.remove(selectionIndex);
+        model.insertElementAt(selectedItem, selectionIndex - 1);
+        
+        lstChapOrder.setSelectedIndex(selectionIndex - 1);
+    }
+    
+    private void moveOrderDown() {
+        var model = (DefaultListModel)lstChapOrder.getModel();
+        var selectionIndex = lstChapOrder.getSelectedIndex();
+        
+        if (selectionIndex >= model.getSize() - 1 ) {
+            return;
+        }
+        
+        var selectedItem = model.get(selectionIndex);
+        model.remove(selectionIndex);
+        model.insertElementAt(selectedItem, selectionIndex + 1);
+        
+        lstChapOrder.setSelectedIndex(selectionIndex + 1);
+    }
+    
+    private void setupListeners() {
+        var chkListener = (ActionListener) (e) -> {
+            lstChapOrder.repaint();
+        };
+        
+        chkConLocal.addActionListener(chkListener);
+        chkGloss.addActionListener(chkListener);
+        chkGrammar.addActionListener(chkListener);
+        chkLocalCon.addActionListener(chkListener);
+        chkOrtho.addActionListener(chkListener);
+        chkPrintPhrases.addActionListener(chkListener);
+    }
+    
+    private String getChapterOrder() {
+        var chapters = new ArrayList<String>();
+        var model = (DefaultListModel)lstChapOrder.getModel();
+        
+        for (int i = 0; i < model.getSize(); i++) {
+            var item = (PrintOrderNode)model.get(i);
+            chapters.add(Integer.toString(item.index));
+        }
+        
+        return String.join(",", chapters.toArray(String[]::new));
+    }
+    
+    /**
+     * This method is called from within the constructor to initialize the form.
+     * WARNING: Do NOT modify this code. The content of this method is always
+     * regenerated by the Form Editor.
+     */
+    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
+    private void initComponents() {
+
+        jPanel1 = new javax.swing.JPanel();
+        txtSavePath = new PTextField(core, true, "Save to File");
+        btnSelectSavePath = new PButton(nightMode);
+        txtImageLocation = new PTextField(core, true, "Cover Image");
+        btnSelectImagePath = new PButton(nightMode);
+        jLabel4 = new PLabel("");
+        jPanel2 = new javax.swing.JPanel();
+        chkLocalCon = new PCheckBox(nightMode);
+        chkConLocal = new PCheckBox(nightMode);
+        chkOrtho = new PCheckBox(nightMode);
+        chkGrammar = new PCheckBox(nightMode);
+        chkLogographs = new PCheckBox(nightMode);
+        chkGloss = new PCheckBox(nightMode);
+        chkEtymology = new PCheckBox(nightMode);
+        chkPrintConjugations = new PCheckBox(nightMode);
+        chkPrintPhrases = new PCheckBox(nightMode);
+        jScrollPane1 = new javax.swing.JScrollPane();
+        lstChapOrder = new PList<>(PGTUtil.MENU_FONT, core);
+        jLabel1 = new PLabel("Chapter Order");
+        btnMoveUp = new PButton(nightMode);
+        btnMoveDown = new PButton(nightMode);
+        txtTitle = new PTextField(core, true, "Title");
+        txtSubtitle = new PTextField(core, true, "Subtitle");
+        jScrollPane2 = new javax.swing.JScrollPane();
+        txtForeword = new PTextPane(core, true, "-- Author Foreword --");
+        btnPrint = new PButton(nightMode);
+        btnCancel = new PButton(nightMode);
+
+        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+        setTitle("HTML Export Options");
+        setMinimumSize(new java.awt.Dimension(475, 685));
+
+        jPanel1.setBackground(new java.awt.Color(255, 255, 255));
+        jPanel1.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.LOWERED));
+
+        txtSavePath.setEditable(false);
+        txtSavePath.setBackground(new java.awt.Color(204, 204, 204));
+
+        btnSelectSavePath.setText("Select Location...");
+        btnSelectSavePath.setToolTipText("Select location to save HTML export to.");
+        btnSelectSavePath.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnSelectSavePathActionPerformed(evt);
+            }
+        });
+
+        txtImageLocation.setEditable(false);
+        txtImageLocation.setBackground(new java.awt.Color(204, 204, 204));
+
+        btnSelectImagePath.setText("Select Image...");
+        btnSelectImagePath.setToolTipText("Select the image (if any) to display on the front cover of your HTML");
+        btnSelectImagePath.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnSelectImagePathActionPerformed(evt);
+            }
+        });
+
+        jLabel4.setText("Print Options");
+
+        jPanel2.setBackground(new java.awt.Color(255, 255, 255));
+        jPanel2.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
+
+        chkLocalCon.setSelected(true);
+        chkLocalCon.setText("Print Local -> Conlang Dictionary");
+        chkLocalCon.setToolTipText("Select to include a dictionary with lookup by native words");
+
+        chkConLocal.setSelected(true);
+        chkConLocal.setText("Print Conlang -> Local Dictionary");
+        chkConLocal.setToolTipText("Select to include a dictionary with lookup by constructed words");
+
+        chkOrtho.setSelected(true);
+        chkOrtho.setText("Print Orthography");
+        chkOrtho.setToolTipText("Include character and pronunciation guides");
+
+        chkGrammar.setSelected(true);
+        chkGrammar.setText("Print Grammar");
+        chkGrammar.setToolTipText("Include text from the grammar section of your library");
+
+        chkLogographs.setText("Print Logographs");
+        chkLogographs.setToolTipText("Coming soon! (if anyone asks for it)");
+        chkLogographs.setEnabled(false);
+
+        chkGloss.setSelected(true);
+        chkGloss.setText("Print Gloss Key");
+        chkGloss.setToolTipText("Prints a key for part of speech glosses");
+
+        chkEtymology.setSelected(true);
+        chkEtymology.setText("Print Etymology Trees");
+
+        chkPrintConjugations.setText("Print All Conjugations");
+        chkPrintConjugations.setToolTipText("If checked, words will have a list of all conjugated forms printed under their definitions.");
+
+        chkPrintPhrases.setSelected(true);
+        chkPrintPhrases.setText("Print Phrases");
+        chkPrintPhrases.setToolTipText("Prints a phrasebook section within the HTML");
+
+        lstChapOrder.setModel(new javax.swing.AbstractListModel<String>() {
+            String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
+            public int getSize() { return strings.length; }
+            public String getElementAt(int i) { return strings[i]; }
+        });
+        jScrollPane1.setViewportView(lstChapOrder);
+
+        jLabel1.setText("Chapter Order");
+
+        btnMoveUp.setText("↑");
+        btnMoveUp.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnMoveUpActionPerformed(evt);
+            }
+        });
+
+        btnMoveDown.setText("↓");
+        btnMoveDown.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnMoveDownActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
+        jPanel2.setLayout(jPanel2Layout);
+        jPanel2Layout.setHorizontalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(chkOrtho, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(chkGloss, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(chkLocalCon, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(chkConLocal, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(chkPrintPhrases, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(chkGrammar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(chkLogographs, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(chkPrintConjugations, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(chkEtymology, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jScrollPane1)
+                    .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, 186, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(btnMoveUp, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnMoveDown, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
+        );
+        jPanel2Layout.setVerticalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addGap(10, 10, 10)
+                .addComponent(chkOrtho)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(chkGloss)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(chkLocalCon)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(chkConLocal)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(chkPrintPhrases)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(chkGrammar)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(chkLogographs)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(chkPrintConjugations)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(chkEtymology)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jLabel1)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(btnMoveUp)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(btnMoveDown))
+                    .addComponent(jScrollPane1)))
+        );
+
+        txtTitle.setToolTipText("The title of your document");
+
+        txtSubtitle.setToolTipText("The subtitle of your document (if any)");
+
+        jScrollPane2.setViewportView(txtForeword);
+
+        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
+        jPanel1.setLayout(jPanel1Layout);
+        jPanel1Layout.setHorizontalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jScrollPane2)
+                    .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(txtImageLocation)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(btnSelectImagePath))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(jLabel4)
+                        .addGap(0, 387, Short.MAX_VALUE))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(txtSavePath)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(btnSelectSavePath))
+                    .addComponent(txtTitle)
+                    .addComponent(txtSubtitle, javax.swing.GroupLayout.Alignment.TRAILING))
+                .addContainerGap())
+        );
+        jPanel1Layout.setVerticalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(txtSavePath, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnSelectSavePath))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(txtImageLocation, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnSelectImagePath))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(txtTitle, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(txtSubtitle, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 102, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabel4)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
+        );
+
+        btnPrint.setText("Export");
+        btnPrint.setToolTipText("Export to HTML file with selected values");
+        btnPrint.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnPrintActionPerformed(evt);
+            }
+        });
+
+        btnCancel.setText("Cancel");
+        btnCancel.setToolTipText("Cancel without creating HTML Export");
+        btnCancel.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnCancelActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
+        getContentPane().setLayout(layout);
+        layout.setHorizontalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(btnCancel)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(btnPrint)
+                .addGap(9, 9, 9))
+        );
+        layout.setVerticalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(layout.createSequentialGroup()
+                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(btnCancel)
+                    .addComponent(btnPrint)))
+        );
+
+        pack();
+    }// </editor-fold>//GEN-END:initComponents
+
+    private void btnSelectSavePathActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSelectSavePathActionPerformed
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Save Language");
+        FileNameExtensionFilter filter = new FileNameExtensionFilter("HTML files", "html");
+        String fileName = core.getCurFileName().replaceAll(".pgd", ".html");
+        chooser.setFileFilter(filter);
+        chooser.setApproveButtonText("Save");
+        chooser.setSelectedFile(new File(fileName));
+
+        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            fileName = chooser.getSelectedFile().getAbsolutePath();
+            if (!fileName.contains(".html")) {
+                fileName += ".html";
+            }            
+            txtSavePath.setText(fileName);
+        }
+    }//GEN-LAST:event_btnSelectSavePathActionPerformed
+
+    private void btnCancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCancelActionPerformed
+        this.dispose();
+    }//GEN-LAST:event_btnCancelActionPerformed
+
+    private void btnPrintActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnPrintActionPerformed
+        if (txtSavePath.getText().isEmpty()) {
+            core.getOSHandler().getInfoBox().warning("File not Specified", "Please specify a file to save to.");
+            return;
+        }
+        
+        if (new File(txtSavePath.getText()).exists()
+                && !new DesktopInfoBox(this).actionConfirmation("Overwrite Confirmation", "File already exists. Overwrite?")) {
+            return;
+        }
+        
+        this.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        try {
+            // prevent printing if etymology is selected but there are illegal loops present
+            if (core.getEtymologyManager().checkAllForIllegalLoops().length > 0) {
+                String message = 
+                        "You have selected \"Print Etymology Trees\" with illegal loops present\n" +
+                        "in your lexicon's etymology. To print the trees, this must be corrected.\n"+ 
+                        "Please select Tools->Check Language to find/correct this problem.";
+                new DesktopInfoBox(this).warning("Etymology Problem", message);
+            }
+            
+            // TODO: Replace bridge with HTML Export
+            PExportToHTML.exportHTML(txtSavePath.getText(), 
+                    txtImageLocation.getText(), 
+                    ((PTextPane)txtForeword).getNakedText(), 
+                    chkConLocal.isSelected(), 
+                    chkLocalCon.isSelected(), 
+                    chkOrtho.isSelected(), 
+                    txtSubtitle.getText(), 
+                    txtTitle.getText(), 
+                    chkGloss.isSelected(), 
+                    chkGrammar.isSelected(), 
+                    chkEtymology.isSelected(), 
+                    chkPrintConjugations.isSelected(),
+                    chkPrintPhrases.isSelected(),
+                    getChapterOrder(),
+                    core);
+
+            if (Desktop.isDesktopSupported()) {
+                if (new DesktopInfoBox(this).yesNoCancel("Export Success", "HTML successfully exported. Open file now?") 
+                        == JOptionPane.YES_OPTION) {
+                    if (!DesktopIOHandler.getInstance().openFileNativeOS(txtSavePath.getText())) {
+                        core.getOSHandler().getInfoBox().error("File Error", 
+                                "Unable to open HTML at location: " + txtSavePath.getText());
+                    }
+                }
+            } else {
+                core.getOSHandler().getInfoBox().info("Export Success", 
+                        "Successfully exported to " + txtSavePath.getText());
+            }
+            
+            this.dispose();
+        } catch (IOException e) {
+            DesktopIOHandler.getInstance().writeErrorLog(e);
+            core.getOSHandler().getInfoBox().error("Save Error", e.getMessage());
+        } finally {
+            this.setCursor(Cursor.getDefaultCursor());
+        }
+    }//GEN-LAST:event_btnPrintActionPerformed
+
+    private void btnSelectImagePathActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSelectImagePathActionPerformed
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Select Logograph Image");
+        FileNameExtensionFilter filter = new FileNameExtensionFilter("Images",
+                "BMP", "bmp", "jpeg", "wbmp", "gif", "GIF", "png", "JPG", "jpg", "WBMP", "JPEG", "PNG");
+        chooser.setFileFilter(filter);
+        String fileName;
+
+        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            fileName = chooser.getSelectedFile().getAbsolutePath();
+        } else {
+            return;
+        }
+        
+        txtImageLocation.setText(fileName);
+    }//GEN-LAST:event_btnSelectImagePathActionPerformed
+
+    private void btnMoveUpActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnMoveUpActionPerformed
+        moveOrederUp();
+    }//GEN-LAST:event_btnMoveUpActionPerformed
+
+    private void btnMoveDownActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnMoveDownActionPerformed
+        moveOrderDown();
+    }//GEN-LAST:event_btnMoveDownActionPerformed
+
+    /**
+     * Open PDF print window
+     * @param _core Dictionary Core
+     */
+    public static void run(final DictCore _core) {
+        PolyGlot.getPolyGlot().getRootWindow().saveAllValues();
+        java.awt.EventQueue.invokeLater(() -> {
+            new ScrPrintToHTML(_core).setVisible(true);
+        });
+    }
+
+    @Override
+    public void updateAllValues(DictCore _core) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton btnCancel;
+    private javax.swing.JButton btnMoveDown;
+    private javax.swing.JButton btnMoveUp;
+    private javax.swing.JButton btnPrint;
+    private javax.swing.JButton btnSelectImagePath;
+    private javax.swing.JButton btnSelectSavePath;
+    private javax.swing.JCheckBox chkConLocal;
+    private javax.swing.JCheckBox chkEtymology;
+    private javax.swing.JCheckBox chkGloss;
+    private javax.swing.JCheckBox chkGrammar;
+    private javax.swing.JCheckBox chkLocalCon;
+    private javax.swing.JCheckBox chkLogographs;
+    private javax.swing.JCheckBox chkOrtho;
+    private javax.swing.JCheckBox chkPrintConjugations;
+    private javax.swing.JCheckBox chkPrintPhrases;
+    private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel4;
+    private javax.swing.JPanel jPanel1;
+    private javax.swing.JPanel jPanel2;
+    private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JScrollPane jScrollPane2;
+    private javax.swing.JList<String> lstChapOrder;
+    private javax.swing.JTextPane txtForeword;
+    private javax.swing.JTextField txtImageLocation;
+    private javax.swing.JTextField txtSavePath;
+    private javax.swing.JTextField txtSubtitle;
+    private javax.swing.JTextField txtTitle;
+    // End of variables declaration//GEN-END:variables
+
+    public class PrintOrderNode {
+        public final String text;
+        public final int index;
+        private final JCheckBox checkBox;
+        
+        public PrintOrderNode(String _text, int _index, JCheckBox _checkBox) {
+            text = _text;
+            index = _index;
+            checkBox = _checkBox;
+        }
+        
+        @Override
+        public String toString() {
+            return text;
+        }
+        
+        public boolean isSelected() {
+            return checkBox.isSelected();
+        }
+    }
+}

@@ -1319,6 +1319,10 @@ public final class ScrMainMenu extends PFrame {
         ScrPrintToPDF.run(core);
     }
 
+    public void publishToHTML() {
+        ScrPrintToHTML.run(core);
+    }
+
     /**
      * sets menu accelerators and menu item text to reflect this
      */
@@ -1583,6 +1587,7 @@ public final class ScrMainMenu extends PFrame {
         mnuRecents = new javax.swing.JMenu();
         jSeparator5 = new javax.swing.JPopupMenu.Separator();
         mnuPublish = new javax.swing.JMenuItem();
+        mnuPublishHTML = new javax.swing.JMenuItem();
         jSeparator2 = new javax.swing.JPopupMenu.Separator();
         mnuExit = new javax.swing.JMenuItem();
         mnuTools = new javax.swing.JMenu();
@@ -1940,6 +1945,13 @@ public final class ScrMainMenu extends PFrame {
             }
         });
         mnuFile.add(mnuPublish);
+        mnuPublishHTML.setText("Publish Language to HTML");
+        mnuPublishHTML.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                mnuPublishHTMLActionPerformed(evt);
+            }
+        });
+        mnuFile.add(mnuPublishHTML);
         mnuFile.add(jSeparator2);
 
         mnuExit.setText("Exit");
@@ -2243,6 +2255,10 @@ public final class ScrMainMenu extends PFrame {
     private void mnuPublishActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_mnuPublishActionPerformed
         printToPdf();
     }//GEN-LAST:event_mnuPublishActionPerformed
+
+    private void mnuPublishHTMLActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_mnuPublishHTMLActionPerformed
+        publishToHTML();
+    }//GEN-LAST:event_mnuPublishHTMLActionPerformed
 
     private void mnuExitActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_mnuExitActionPerformed
         dispose();
@@ -2620,6 +2636,7 @@ public final class ScrMainMenu extends PFrame {
     private javax.swing.JMenuItem mnuOptions;
     private javax.swing.JMenuItem mnuPackLanguage;
     private javax.swing.JMenuItem mnuPublish;
+    private javax.swing.JMenuItem mnuPublishHTML;
     private javax.swing.JMenu mnuRecents;
     private javax.swing.JMenuItem mnuReversion;
     private javax.swing.JMenuItem mnuSaveAs;
