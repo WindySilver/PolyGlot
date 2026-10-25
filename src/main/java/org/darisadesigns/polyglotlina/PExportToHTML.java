@@ -33,7 +33,7 @@ public class PExportToHTML {
         try (BufferedWriter writer = Files.newBufferedWriter(filePath)) {
             
             // Open the HTML File
-            writer.write("<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n");
+            writer.write("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
             writer.write("    <meta charset=\"UTF-8\">\n");
             // TODO: Proper title based on txtTitle (or lack thereof)
             writer.write("    <title>Conlang Dictionary</title>\n");
@@ -43,12 +43,51 @@ public class PExportToHTML {
             // TODO: Handle unincluded title, subtitle, foreword
             writer.write("    <h1>" + txtTitle +"</h1>\n");
             writer.write("<h2>"+ txtSubtitle + "</h2>");
-            writer.write("<p>" + txtForewordNakedTxt + "</p>");
 
             // TODO: Add the real data
             writer.write("    <ul>\n");
             writer.write("    <li>Test1</li>\n");
             writer.write("    <li>Test2</li>\n");
+            
+            // Controls like "expand/collapse all etymology trees (collapsed by default)" here or somewhere else that makes sense
+
+            // TODO: Author Foreword
+            writer.write("<p>" + txtForewordNakedTxt + "</p>");
+
+            // TODO: Orthography
+
+            // TODO: Gloss Key
+
+            // TODO: Dictionary: Conlang to Local
+            // Conlang word
+            // Part of Speech - Pronunciation
+            // Romanization
+            // Lexical classes
+            // Local word
+            // \n
+            // Longer meaning
+            // \n
+            // Conjugations
+            // \n
+            // Etymology tree \n Etymology notes, collapsed by default
+
+            // TODO: Dictionary: Local to Conlang
+            // Local word
+            // \n
+            // Conlang word
+            // Part of Speech - Pronunciation
+            // Romanization
+            // Lexical classes
+            // \n
+            // Longer meaning
+            // \n
+            // Conjugations
+            // \n
+            // Etymology tree \n Etymology notes, collapsed by default
+
+            // TODO: Phrasebook
+
+            // TODO: Grammar + Subheaders for each chapter
 
             // Close the HTML file
             writer.write("    </ul>\n</body>\n</html>");
