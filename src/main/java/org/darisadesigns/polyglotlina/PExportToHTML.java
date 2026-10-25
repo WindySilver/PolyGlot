@@ -27,27 +27,54 @@ import java.nio.file.Paths;
 
 public class PExportToHTML {
 
+    private static String _txtForewordNakedTxt = "";
+    private static boolean _chkConLocal = false;
+    private static boolean _chkLocalCon = false;
+    private static boolean _chkOrtho = false;
+    private static String _txtSubtitle = "";
+    private static String _txtTitle = "";
+    private static boolean _chkGloss = false;
+    private static boolean _chkGrammar = false;
+    private static boolean _chkEtymology = false;
+    private static boolean _chkPrintConjugations = false;
+    private static boolean _chkPrintPhrases = false;
+    private static String _chapterOrder = "";
+    private static DictCore _core;
+    private static BufferedWriter writer;
+
     public static void exportHTML(String txtSavePath, String txtForewordNakedTxt, boolean chkConLocal, boolean chkLocalCon, boolean chkOrtho, String txtSubtitle, String txtTitle, boolean chkGloss, boolean chkGrammar, boolean chkEtymology, boolean chkPrintConjugations, boolean chkPrintPhrases, String chapterOrder, DictCore core) throws IOException {
+        // Set up received parameters to private variables to make calling each builder function neater
+        _txtForewordNakedTxt = txtForewordNakedTxt;
+        _chkConLocal = chkConLocal;
+        _chkLocalCon = chkLocalCon;
+        _chkOrtho = chkOrtho;
+        _txtSubtitle = txtSubtitle;
+        _txtTitle = txtTitle;
+        _chkGloss = chkGloss;
+        _chkGrammar = _chkGrammar;
+        _chkEtymology = _chkEtymology;
+        _chkPrintConjugations = chkPrintConjugations;
+        _chkPrintPhrases = chkPrintPhrases;
+        _chapterOrder = chapterOrder;
+        _core = core;
+        
         Path filePath = Paths.get(txtSavePath);
 
-        try (BufferedWriter writer = Files.newBufferedWriter(filePath)) {
+        String mainTitle = core.conLabel();
+
+        try {
+            writer = Files.newBufferedWriter(filePath);
             
             // Open the HTML File
             writer.write("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
             writer.write("    <meta charset=\"UTF-8\">\n");
-            // TODO: Proper title based on txtTitle (or lack thereof)
-            writer.write("    <title>Conlang Dictionary</title>\n");
+            writer.write("    <title>" + mainTitle +"</title>\n");
             // TODO: Styling
-            writer.write("    <style>body{font-family:sans-serif;}</style>\n");
+            writer.write("    <style>body{font-family:sans-serif;}" +
+            ".frontpage{text-align: center;}"
+            + "</style>\n");
             writer.write("</head>\n<body>\n");
-            // TODO: Handle unincluded title, subtitle, foreword
-            writer.write("    <h1>" + txtTitle +"</h1>\n");
-            writer.write("<h2>"+ txtSubtitle + "</h2>");
-
-            // TODO: Add the real data
-            writer.write("    <ul>\n");
-            writer.write("    <li>Test1</li>\n");
-            writer.write("    <li>Test2</li>\n");
+            buildFrontPage(mainTitle);
             
             // Controls like "expand/collapse all etymology trees (collapsed by default)" here or somewhere else that makes sense
 
@@ -91,9 +118,23 @@ public class PExportToHTML {
 
             // Close the HTML file
             writer.write("    </ul>\n</body>\n</html>");
+            writer.close();
 
         } catch (IOException e) {
             System.err.println("Error while exporting dictionary: " + e.getMessage());
+        }
+    }
+
+    private static void buildFrontPage(String mainTitle){
+        try{
+            String author = _core.getPropertiesManager().getCopyrightAuthorInfo();
+            writer.write("<div class=\"frontpage\">");
+            writer.write("<h1>" + mainTitle +"</h1>\n");
+            if (_txtSubtitle.length() > 0) writer.write("<h2>"+ _txtSubtitle + "</h2>");
+            if (author.length() > 0) writer.write("<p>" + author + "</p>");
+            writer.write("</div>\n<hr>");
+        } catch (IOException e) {
+            System.err.println("Error while building front page: " + e.getMessage());
         }
     }
 
