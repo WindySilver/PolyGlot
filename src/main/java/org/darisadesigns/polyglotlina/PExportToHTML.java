@@ -101,9 +101,7 @@ public class PExportToHTML {
             // TODO: Controls like "expand/collapse all etymology trees (collapsed by default)" to TOC page or somewhere else that makes sense
             buildTOC();
 
-            // TODO: Author Foreword
-            // TODO: Change linebreaks in _txtForeword to HTML line breaks
-            writer.write("<p>" + _txtForeword + "</p>");
+            buildForeword();
 
             // TODO: Orthography
 
@@ -201,6 +199,16 @@ public class PExportToHTML {
             System.err.println("Error while building table of contents: " + e.getMessage());
         } catch (IllegalArgumentException e){
             System.err.println("Error while building table of contents: " + e.getMessage());
+        }
+    }
+
+    private static void buildForeword(){
+        try{
+            writer.write("<h2>" + forewordTitle + "</h2>");
+            _txtForeword = _txtForeword.replaceAll("\n", "<br>");
+            writer.write("<p>" + _txtForeword + "</p>");
+        } catch (IOException e) {
+            System.err.println("Error while building foreword: " + e.getMessage());
         }
     }
 
