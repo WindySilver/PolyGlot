@@ -135,11 +135,11 @@ public class ScrPrintToHTML extends PDialog {
                 checkBox = chkGloss;
             }
             case PGTUtil.CHAP_CONTOLOCAL -> {
-                prefix = core.localLabel();
+                prefix = core.conLabel() + " to " + core.localLabel();
                 checkBox = chkConLocal;
             }
             case PGTUtil.CHAP_LOCALTOCON -> {
-                prefix = core.conLabel();
+                prefix =  core.localLabel() + " to " + core.conLabel();
                 checkBox = chkLocalCon;
             }
             case PGTUtil.CHAP_PHRASEBOOK -> {
@@ -516,7 +516,6 @@ public class ScrPrintToHTML extends PDialog {
                 new DesktopInfoBox(this).warning("Etymology Problem", message);
             }
             
-            // TODO: Replace bridge with HTML Export
             PExportToHTML.exportHTML(txtSavePath.getText(),
                     ((PTextPane)txtForeword).getNakedText(), 
                     chkConLocal.isSelected(), 
