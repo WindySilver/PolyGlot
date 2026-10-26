@@ -26,8 +26,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.*;
+import java.awt.Font;
+import java.util.Base64;
 
 import org.darisadesigns.polyglotlina.Nodes.PronunciationNode;
+import org.darisadesigns.polyglotlina.Desktop.DesktopPropertiesManager;
 
 public class PExportToHTML {
 
@@ -62,7 +65,7 @@ public class PExportToHTML {
     private static String localToConTitle = "LocalToCon";
     private static String conToLocalTitle = "ConToLocal";
 
-    public static void exportHTML(String txtSavePath, String txtForeword, boolean chkConLocal, boolean chkLocalCon, boolean chkOrtho, String txtSubtitle, String txtTitle, boolean chkGloss, boolean chkGrammar, boolean chkEtymology, boolean chkPrintConjugations, boolean chkPrintPhrases, String chapterOrder, DictCore core) throws IOException {
+    public static void exportHTML(String txtSavePath, String txtForeword, boolean chkConLocal, boolean chkLocalCon, boolean chkOrtho, String txtSubtitle, String txtTitle, boolean chkGloss, boolean chkGrammar, boolean chkEtymology, boolean chkPrintConjugations, boolean chkPrintPhrases, boolean chkEmbedCon, boolean chkEmbedLoc, String chapterOrder, DictCore core) throws IOException {
         // Set up received parameters to private variables to make calling each builder function neater
         _txtForeword = txtForeword;
         // TODO: While building the main sections, check if any of the chk booleans are needed outside this main builder
@@ -90,6 +93,9 @@ public class PExportToHTML {
         try {
             writer = Files.newBufferedWriter(filePath);
             
+            // Put the fonts into CSS format, including encoding for embedding them if need be (embedding is necessary for custom fonts like the one used by the example language Lodenkur)
+            String fonts = encodeFonts(chkEmbedCon, chkEmbedLoc);
+
             // Open the HTML File
             writer.write("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
             writer.write("    <meta charset=\"UTF-8\">\n");
@@ -100,6 +106,7 @@ public class PExportToHTML {
             ".TOC * {list-style-type: none;}" +
             "table, th, td {border: 1px solid; border-collapse: collapse; text-align: center;}" +
             "th {padding: 0.3em;}" +
+            fonts +
             "</style>\n");
             writer.write("</head>\n<body>\n");
             buildFrontPage();
@@ -109,7 +116,6 @@ public class PExportToHTML {
 
             if(_txtForeword.length() > 0) buildForeword();
 
-            // TODO: Option for embedding custom fonts
             if(chkOrtho) buildOrthography();
 
             // TODO: Gloss Key
@@ -152,6 +158,34 @@ public class PExportToHTML {
         } catch (IOException e) {
             System.err.println("Error while exporting dictionary: " + e.getMessage());
         }
+    }
+    
+    private static String encodeFonts(boolean conB, boolean locB){
+
+        Font con = ((DesktopPropertiesManager)_core.getPropertiesManager()).getFontCon();
+        Font loc = ((DesktopPropertiesManager)_core.getPropertiesManager()).getFontLocal();
+        String ret = "";
+
+        // Force font names into English to parse bolding and italics out of them because nothing else is doing the trick in this implementation
+        String conName = con.getFontName(java.util.Locale.US).toLowerCase();
+        String locName = loc.getFontName(java.util.Locale.US).toLowerCase();
+
+        // Embed fonts if options for that were selected and the fonts have been cached (in other words, changed from default)
+        // Very low-priority TODO: Find the default font location for embedding that?
+        if(conB && _core.getPropertiesManager().getCachedFont() != null){
+            ret = "@font-face {\nfont-family: '" + con.getFamily() + "';\n";
+            ret = ret + "src: url('data:font/woff2;charset=utf-8;base64," + Base64.getEncoder().encodeToString(_core.getPropertiesManager().getCachedFont()) + "') format('woff2');}\n";
+        }
+        if(locB && _core.getPropertiesManager().getCachedLocalFont() != null){
+            ret = ret + "@font-face {\nfont-family: '" + loc.getFamily() + "';\n";
+            ret = ret + "src: url('data:font/woff2;charset=utf-8;base64," + Base64.getEncoder().encodeToString(_core.getPropertiesManager().getCachedLocalFont()) + "') format('woff2');}\n";
+        }
+
+        // Build the conlang and locallang styles
+        ret = ret + ".conlang {font-family: " + con.getFamily() + "; font-size: " + con.getSize() + "px;" +  ((conB && _core.getPropertiesManager().getCachedFont() != null) ? "" : "font-weight: " + (conName.contains("bold") ? "bold" : "normal") + "; font-style: " + (conName.contains("italic") ? "italic" : "normal") + ";") + "}\n";
+        ret = ret + ".locallang {font-family: " + loc.getFamily() + "; font-size: " + loc.getSize() + "px;" + ((locB && _core.getPropertiesManager().getCachedLocalFont() != null) ? "" : "font-weight: " + (locName.contains("bold") ? "bold" : "normal") + "; font-style: " + (locName.contains("italic") ? "italic" : "normal") + ";") + "}\n";
+
+        return ret;
     }
 
     private static void buildFrontPage(){
@@ -228,11 +262,12 @@ public class PExportToHTML {
             String tableBuilding = "<table>\n<tr>\n<th><b>Character(s)</b></th>\n<th><b>Pronunciation</b></th>\n</tr>\n";
             boolean usesRegex = false;
 
-             for (PronunciationNode curNode : _core.getPronunciationMgr().getPronunciations()) {
+            // Low-priority TODO: Isolate regex characters from the conlang font class
+            for (PronunciationNode curNode : _core.getPronunciationMgr().getPronunciations()) {
                 // Check for regex usage
                 if(curNode.getValue().contains("$") || curNode.getValue().contains("^")) usesRegex = true;
                 // Build the next table row
-                tableBuilding = tableBuilding + "<tr>\n<td>" + curNode.getValue() + "</td>\n<td>" + curNode.getPronunciation() + "</td>\n</tr>\n";
+                tableBuilding = tableBuilding + "<tr>\n<td class=\"conlang\">" + curNode.getValue() + "</td>\n<td class=\"locallang\">" + curNode.getPronunciation() + "</td>\n</tr>\n";
              }
 
             if(usesRegex) writer.write("<p>Symbols $ and ^ indicate that elements of orthography must appear at the beginning or the end of a word.</p>\n");

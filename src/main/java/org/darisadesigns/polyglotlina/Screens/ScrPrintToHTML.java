@@ -198,6 +198,8 @@ public class ScrPrintToHTML extends PDialog {
         chkLocalCon.addActionListener(chkListener);
         chkOrtho.addActionListener(chkListener);
         chkPrintPhrases.addActionListener(chkListener);
+        chkEmbedCon.addActionListener(chkListener);
+        chkEmbedLoc.addActionListener(chkListener);
     }
     
     private String getChapterOrder() {
@@ -234,6 +236,8 @@ public class ScrPrintToHTML extends PDialog {
         chkEtymology = new PCheckBox(nightMode);
         chkPrintConjugations = new PCheckBox(nightMode);
         chkPrintPhrases = new PCheckBox(nightMode);
+        chkEmbedCon = new PCheckBox(nightMode);
+        chkEmbedLoc = new PCheckBox(nightMode);
         jScrollPane1 = new javax.swing.JScrollPane();
         lstChapOrder = new PList<>(PGTUtil.MENU_FONT, core);
         jLabel1 = new PLabel("Chapter Order");
@@ -303,6 +307,14 @@ public class ScrPrintToHTML extends PDialog {
         chkPrintPhrases.setText("Export Phrases");
         chkPrintPhrases.setToolTipText("Includes a phrasebook section within the HTML");
 
+        chkEmbedCon.setSelected(false);
+        chkEmbedCon.setText("Embed conlang font (recommended only for custom fonts)");
+        chkEmbedCon.setToolTipText("Works only if you have changed the font from the default. Dramatically increases file size, so only recommended for custom fonts. Standard fonts like Times New Roman will still work if this option is unchecked, provided the user has the font installed on their system");
+
+        chkEmbedLoc.setSelected(false);
+        chkEmbedLoc.setText("Embed local language's font (recommended only for custom fonts)");
+        chkEmbedLoc.setToolTipText("Works only if you have changed the font from the default. Dramatically increases file size, so only recommended for custom fonts. Standard fonts like Times New Roman will still work if this option is unchecked, provided the user has the font installed on their system");
+
         lstChapOrder.setModel(new javax.swing.AbstractListModel<String>() {
             String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
             public int getSize() { return strings.length; }
@@ -341,7 +353,9 @@ public class ScrPrintToHTML extends PDialog {
                     .addComponent(chkGrammar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(chkLogographs, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(chkPrintConjugations, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(chkEtymology, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addComponent(chkEtymology, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(chkEmbedCon, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(chkEmbedLoc, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane1)
@@ -372,6 +386,10 @@ public class ScrPrintToHTML extends PDialog {
                 .addComponent(chkPrintConjugations)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(chkEtymology)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(chkEmbedCon)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(chkEmbedLoc)
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
             .addGroup(jPanel2Layout.createSequentialGroup()
                 .addContainerGap()
@@ -528,6 +546,8 @@ public class ScrPrintToHTML extends PDialog {
                     chkEtymology.isSelected(), 
                     chkPrintConjugations.isSelected(),
                     chkPrintPhrases.isSelected(),
+                    chkEmbedCon.isSelected(),
+                    chkEmbedLoc.isSelected(),
                     getChapterOrder(),
                     core);
 
@@ -592,6 +612,8 @@ public class ScrPrintToHTML extends PDialog {
     private javax.swing.JCheckBox chkOrtho;
     private javax.swing.JCheckBox chkPrintConjugations;
     private javax.swing.JCheckBox chkPrintPhrases;
+    private javax.swing.JCheckBox chkEmbedCon;
+    private javax.swing.JCheckBox chkEmbedLoc;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel4;
     private javax.swing.JPanel jPanel1;
