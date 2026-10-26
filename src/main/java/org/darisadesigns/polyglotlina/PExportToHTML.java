@@ -27,6 +27,8 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.*;
 
+import org.darisadesigns.polyglotlina.Nodes.PronunciationNode;
+
 public class PExportToHTML {
 
     private static String _mainTitle = "";
@@ -48,6 +50,7 @@ public class PExportToHTML {
 
     // Constants for chapter titles and links 
     private final static String forewordTitle = "Author Foreword";
+    private final static String forewordLink = "Foreword";
     private final static String orthoTitle = "Orthography";
     private final static String glossTitle = "Gloss Key";
     private final static String phraseTitle = "Phrasebook";
@@ -62,6 +65,7 @@ public class PExportToHTML {
     public static void exportHTML(String txtSavePath, String txtForeword, boolean chkConLocal, boolean chkLocalCon, boolean chkOrtho, String txtSubtitle, String txtTitle, boolean chkGloss, boolean chkGrammar, boolean chkEtymology, boolean chkPrintConjugations, boolean chkPrintPhrases, String chapterOrder, DictCore core) throws IOException {
         // Set up received parameters to private variables to make calling each builder function neater
         _txtForeword = txtForeword;
+        // TODO: While building the main sections, check if any of the chk booleans are needed outside this main builder
         _chkConLocal = chkConLocal;
         _chkLocalCon = chkLocalCon;
         _chkOrtho = chkOrtho;
@@ -94,6 +98,8 @@ public class PExportToHTML {
             writer.write("    <style>body{font-family:sans-serif;}" +
             ".frontpage{text-align: center;}" +
             ".TOC * {list-style-type: none;}" +
+            "table, th, td {border: 1px solid; border-collapse: collapse; text-align: center;}" +
+            "th {padding: 0.3em;}" +
             "</style>\n");
             writer.write("</head>\n<body>\n");
             buildFrontPage();
@@ -101,9 +107,10 @@ public class PExportToHTML {
             // TODO: Controls like "expand/collapse all etymology trees (collapsed by default)" to TOC page or somewhere else that makes sense
             buildTOC();
 
-            buildForeword();
+            if(_txtForeword.length() > 0) buildForeword();
 
-            // TODO: Orthography
+            // TODO: Option for embedding custom fonts
+            if(chkOrtho) buildOrthography();
 
             // TODO: Gloss Key
 
@@ -168,7 +175,7 @@ public class PExportToHTML {
                 .toArray();
 
             writer.write("<div class=\"TOC\">\n<h2>Table of Contents</h2>\n<ul>\n");
-            if (_txtForeword.length() > 0) writer.write("<li><a href=\"#Foreword\">" + forewordTitle + "</a></li>\n");
+            if (_txtForeword.length() > 0) writer.write("<li><a href=\"#" + forewordLink + "\">" + forewordTitle + "</a></li>\n");
 
             for (int i : order){
                 switch (i) {
@@ -204,11 +211,34 @@ public class PExportToHTML {
 
     private static void buildForeword(){
         try{
-            writer.write("<h2>" + forewordTitle + "</h2>");
+            writer.write("<h2 id=\""+ forewordLink + "\">" + forewordTitle + "</h2>");
             _txtForeword = _txtForeword.replaceAll("\n", "<br>");
             writer.write("<p>" + _txtForeword + "</p>");
         } catch (IOException e) {
             System.err.println("Error while building foreword: " + e.getMessage());
+        }
+    }
+
+    private static void buildOrthography(){
+        try{
+            writer.write("<h2 id=\""+ orthoTitle + "\">" + orthoTitle + "</h2>");
+            // If orthography uses regex, the text about it needs to come before the table,
+            // but regex usage is only determined while already building the table.
+            // Because of that, the full table gets built into a string to allow for correct ordering of elements
+            String tableBuilding = "<table>\n<tr>\n<th><b>Character(s)</b></th>\n<th><b>Pronunciation</b></th>\n</tr>\n";
+            boolean usesRegex = false;
+
+             for (PronunciationNode curNode : _core.getPronunciationMgr().getPronunciations()) {
+                // Check for regex usage
+                if(curNode.getValue().contains("$") || curNode.getValue().contains("^")) usesRegex = true;
+                // Build the next table row
+                tableBuilding = tableBuilding + "<tr>\n<td>" + curNode.getValue() + "</td>\n<td>" + curNode.getPronunciation() + "</td>\n</tr>\n";
+             }
+
+            if(usesRegex) writer.write("<p>Symbols $ and ^ indicate that elements of orthography must appear at the beginning or the end of a word.</p>\n");
+            writer.write(tableBuilding + "\n</table>");
+        } catch (IOException e) {
+            System.err.println("Error while building orthography: " + e.getMessage());
         }
     }
 
