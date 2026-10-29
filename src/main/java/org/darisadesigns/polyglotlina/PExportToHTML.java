@@ -31,6 +31,7 @@ import java.util.Base64;
 
 import org.darisadesigns.polyglotlina.Nodes.PronunciationNode;
 import org.darisadesigns.polyglotlina.Desktop.DesktopPropertiesManager;
+import org.darisadesigns.polyglotlina.Nodes.TypeNode;
 
 public class PExportToHTML {
 
@@ -102,10 +103,10 @@ public class PExportToHTML {
             writer.write("    <title>" + _mainTitle +"</title>\n");
             // TODO: Styling
             writer.write("    <style>body{font-family:sans-serif;}" +
-            ".frontpage{text-align: center;}" +
-            ".TOC * {list-style-type: none;}" +
+            "#frontpage{text-align: center;}" +
+            "#TOC * {list-style-type: none;}" +
             "table, th, td {border: 1px solid; border-collapse: collapse; text-align: center;}" +
-            "th {padding: 0.3em;}" +
+            "th, td {padding: 0.3em;}" +
             fonts +
             "</style>\n");
             writer.write("</head>\n<body>\n");
@@ -118,7 +119,7 @@ public class PExportToHTML {
 
             if(chkOrtho) buildOrthography();
 
-            // TODO: Gloss Key
+            if(chkGloss) buildGlossKey();
 
             // TODO: Dictionary: Conlang to Local
             // Conlang word
@@ -152,7 +153,7 @@ public class PExportToHTML {
             // TODO: Grammar + Subheaders for each chapter
 
             // Close the HTML file
-            writer.write("    </ul>\n</body>\n</html>");
+            writer.write("    \n</body>\n</html>");
             writer.close();
 
         } catch (IOException e) {
@@ -191,7 +192,7 @@ public class PExportToHTML {
     private static void buildFrontPage(){
         try{
             String author = _core.getPropertiesManager().getCopyrightAuthorInfo();
-            writer.write("<div class=\"frontpage\">");
+            writer.write("<div id=\"frontpage\">");
             writer.write("<h1>" + _mainTitle +"</h1>\n");
             if (_txtSubtitle.length() > 0) writer.write("<h2>"+ _txtSubtitle + "</h2>");
             if (author.length() > 0) writer.write("<p>" + author + "</p>");
@@ -208,7 +209,7 @@ public class PExportToHTML {
                 .mapToInt(Integer::parseInt)
                 .toArray();
 
-            writer.write("<div class=\"TOC\">\n<h2>Table of Contents</h2>\n<ul>\n");
+            writer.write("<div id=\"TOC\">\n<h2>Table of Contents</h2>\n<ul>\n");
             if (_txtForeword.length() > 0) writer.write("<li><a href=\"#" + forewordLink + "\">" + forewordTitle + "</a></li>\n");
 
             for (int i : order){
@@ -245,9 +246,9 @@ public class PExportToHTML {
 
     private static void buildForeword(){
         try{
-            writer.write("<h2 id=\""+ forewordLink + "\">" + forewordTitle + "</h2>");
+            writer.write("<div id=\"foreword\"><h2 id=\""+ forewordLink + "\">" + forewordTitle + "</h2>");
             _txtForeword = _txtForeword.replaceAll("\n", "<br>");
-            writer.write("<p>" + _txtForeword + "</p>");
+            writer.write("<p>" + _txtForeword + "</p></div>\n<hr>\n\n");
         } catch (IOException e) {
             System.err.println("Error while building foreword: " + e.getMessage());
         }
@@ -255,7 +256,7 @@ public class PExportToHTML {
 
     private static void buildOrthography(){
         try{
-            writer.write("<h2 id=\""+ orthoTitle + "\">" + orthoTitle + "</h2>");
+            writer.write("<div id=\"orthography\"><h2 id=\""+ orthoTitle + "\">" + orthoTitle + "</h2>");
             // If orthography uses regex, the text about it needs to come before the table,
             // but regex usage is only determined while already building the table.
             // Because of that, the full table gets built into a string to allow for correct ordering of elements
@@ -271,9 +272,24 @@ public class PExportToHTML {
              }
 
             if(usesRegex) writer.write("<p>Symbols $ and ^ indicate that elements of orthography must appear at the beginning or the end of a word.</p>\n");
-            writer.write(tableBuilding + "\n</table>");
+            writer.write(tableBuilding + "\n</table></div>\n<hr>\n\n");
         } catch (IOException e) {
             System.err.println("Error while building orthography: " + e.getMessage());
+        }
+    }
+
+    private static void buildGlossKey(){
+        try{
+            writer.write("<div id=\"gloss\"><h2 id=\""+ glossLink + "\">" + glossTitle + "</h2>");
+            writer.write("<table>\n<tr>\n<th><b>Part of Speech</b></th>\n<th><b>Gloss</b></th>\n</tr>\n");
+            
+            for (TypeNode curNode : _core.getTypes().getNodes()) {
+                // I don't like leaving the Gloss column empty nor leaving it out altogether in case of missing abbreviations, so fill missing gloss with PoS itself
+                writer.write("<tr>\n<td>" + curNode.getValue() + "</td>\n<td>" + (curNode.getGloss().length() > 0 ? curNode.getGloss() : curNode.getValue()) + "</td>\n</tr>\n");
+             }
+            writer.write("\n</table></div>\n<hr>\n\n");
+        } catch (IOException e) {
+            System.err.println("Error while building gloss key: " + e.getMessage());
         }
     }
 
