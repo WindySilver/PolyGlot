@@ -70,7 +70,7 @@ public class PTableModel extends AbstractTableModel {
 
     @Override
     public void setValueAt(Object value, int rowIndex, int columnIndex) {
-        rows.get(rowIndex)[columnIndex] = (DictNode) value;
+        rows.get(rowIndex)[columnIndex].setValue(value.toString());
         fireTableCellUpdated(rowIndex, columnIndex);
     }
 
