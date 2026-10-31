@@ -574,6 +574,18 @@ public class EtymologyManager {
         }
     }
     
+    /**
+     * Restored to this side of PolyGlot now that there's an export that needs it (HTML)
+     * Tests whether word has any etymological relevance
+     * @param word
+     * @return true if parents or children to this word
+     */
+    public boolean hasEtymology(ConWord word) {
+        return childToParent.containsKey(word.getId()) // if word has parents
+                || parentToChild.containsKey(word.getId()) // if word has children
+                || (childToExtParent.containsKey(word.getId()) && !childToExtParent.get(word.getId()).isEmpty()); // if word has external parents
+    }
+    
     @Override
     public boolean equals(Object comp) {
         boolean ret = false;
