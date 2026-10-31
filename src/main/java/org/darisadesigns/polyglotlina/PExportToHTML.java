@@ -131,19 +131,8 @@ public class PExportToHTML {
 
             if(chkConLocal) buildConToLocal();
 
-            // TODO: Dictionary: Local to Conlang
-            // Local word
-            // \n
-            // Conlang word
-            // Part of Speech - Pronunciation
-            // Romanization
-            // Lexical classes
-            // \n
-            // Longer meaning
-            // \n
-            // Conjugations
-            // \n
-            // Etymology tree \n Etymology notes, collapsed by default
+            if (chkLocalCon) buildLocalToCon();
+
 
             // TODO: Phrasebook
 
@@ -159,7 +148,7 @@ public class PExportToHTML {
             System.err.println("Error while exporting dictionary: " + e.getMessage());
         }
     }
-    
+
     private static String encodeFonts(boolean conB, boolean locB){
 
         Font con = ((DesktopPropertiesManager)_core.getPropertiesManager()).getFontCon();
@@ -292,6 +281,7 @@ public class PExportToHTML {
         }
     }
 
+    // TODO: Proper formatting
     private static void buildConToLocal() throws Exception {
         try{
             if (posNames == null) fetchPOS();
@@ -354,8 +344,74 @@ public class PExportToHTML {
                 if (_chkEtymology && _core.getEtymologyManager().hasEtymology(curWord)) buildEtymologyTree(curWord);
             }
 
+            writer.write("</div>\n<hr>\n\n");
+        } catch (IOException e) {
+            System.err.println("Error while building conlang to local dictionary: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Error while building conlang to local dictionary: " + e.getMessage());
+        }
+    }
+    
+    // TODO: Proper formatting
+    private static void buildLocalToCon() {
+        try{
+            if (posNames == null) fetchPOS();
+            writer.write("<div id=\"localCon\"><h2 id=\""+ localToConLink + "\">" + localToConTitle + "</h2>\n");
+            
+            String activeLetter = "";
+            for (ConWord curWord : _core.getWordCollection().getNodesLocalOrder()) {
+                // Build letter sectioning when active first letter changes
+                if (!curWord.getValue().substring(0,1).equals(activeLetter)){
+                    activeLetter = curWord.getValue().substring(0,1);
+                    writer.write("<h3><u><b class=\"conlang\">" + activeLetter +"</b> words</u></h3>\n\n");
+                }
 
+                // Build singular dictionary entry
+                writer.write("<h4 class=\"locallang\">" + curWord.getLocalWord() + "</h4><br>\n");
+                writer.write("<p class=\"conlang\">" + curWord.getValue() + "</p>\n");
+                
+                // If word has part of speech and/or pronunciation, write them (for formatting reasons, handle "both" and "just one" cases separately)
+                if (posNames.containsKey(curWord.getWordTypeId()) && curWord.getPronunciation().length() > 0) writer.write("<p>" + posNames.get(curWord.getWordTypeId()) + " - /" + curWord.getPronunciation() + "/" + "</p>\n");
+                else if (posNames.containsKey(curWord.getWordTypeId()) || curWord.getPronunciation().length() > 0) writer.write("<p>" + (posNames.containsKey(curWord.getWordTypeId()) ? posNames.get(curWord.getWordTypeId()) : "") + (curWord.getPronunciation().length() > 0 ? "/" + curWord.getPronunciation() + "/" : "") + "</p>\n");
+                
+                // If word has a romanization, write it romanization
+                if (_core.getRomManager().getPronunciation(curWord.getValue()).length() > 0) writer.write("<p>Romanization: " + _core.getRomManager().getPronunciation(curWord.getValue()) + "</p>");
 
+                // If word has lexical classes, write them
+                String asso = "";
+                String val = "";
+                String free = "";
+                if(!curWord.getClassValues().isEmpty()){
+                    // Because the classes aren't automatically ordered by type, ordering needs to be built with builder strings
+                    for (Entry<Integer, Integer> curEntry : curWord.getClassValues()) {
+                        WordClass curClass = (WordClass) _core.getWordClassCollection()
+                                .getNodeById(curEntry.getKey());
+                        // Associative class
+                        if (curClass.isAssociative()) asso = asso + "<p>" + curClass + ": " + _core.getWordCollection().getNodeById(curEntry.getValue()).getValue() + "</p>\n";
+                        // Value class
+                        else val = val + "<p>" + curClass + ": " + curClass.getValueById(curEntry.getValue()).getValue() + "</p>\n";
+                    }
+                }
+                // Free text classes are saved separately from associative and value classes
+                if (!curWord.getClassTextValues().isEmpty()) {                
+                    for (Entry<Integer, String> curEntry : curWord.getClassTextValues()) {
+                        // Only list the class if it has a value
+                        if (!curEntry.getValue().trim().isEmpty()) free = free + ("<p>" + _core.getWordClassCollection().getNodeById(curEntry.getKey()) + ": " + curEntry.getValue() + "</p>\n");
+                    }
+                }
+                // Ordering in the Lexical Class UI is Associative, Free Text, Values. Will follow the same logic
+                if (asso.length() > 0 || val.length() > 0 || free.length() > 0) writer.write(asso + free + val);
+                
+                // If longer definition exists, write it
+                if (stripHTML(curWord.getDefinition(), false).trim().length() > 0) writer.write("<br><p><b>Longer definition</b></p><p>" + curWord.getDefinition().trim() + "</p><br>\n");
+                
+                // If word has conjugations and they've been selected for exporting, write them
+                if (_chkPrintConjugations) buildConJugations(curWord);
+
+                // If word has etymology and it has been selected for exporting, build the etymology tree
+                if (_chkEtymology && _core.getEtymologyManager().hasEtymology(curWord)) buildEtymologyTree(curWord);
+            }            
+            
             writer.write("</div>\n<hr>\n\n");
         } catch (IOException e) {
             System.err.println("Error while building conlang to local dictionary: " + e.getMessage());
@@ -397,7 +453,7 @@ public class PExportToHTML {
                     System.err.println("Problem generating " + curPair.label + " due to bad regex. Please check regex for word form.");
                 }
             }
-            writer.write("<p>" + curPair.label + ": " + declension + "</p>\n");
+            writer.write("<p>" + curPair.label + ": <span class=\"conlang\">" + declension + "</span></p>\n");
         }
     }
 
@@ -431,6 +487,7 @@ public class PExportToHTML {
     }
 
     // TODO: Refine formatting
+    // TODO: Links to each entry in the tree once formatting is better
     private static void buildEtymologyTree(ConWord curWord) throws IOException{
         
         writer.write("<br><details>\n<summary>Etymology</summary>\n");
