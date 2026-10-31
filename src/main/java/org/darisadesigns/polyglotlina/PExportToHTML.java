@@ -36,6 +36,7 @@ import org.darisadesigns.polyglotlina.Nodes.ConWord;
 import org.darisadesigns.polyglotlina.Nodes.ConjugationNode;
 import org.darisadesigns.polyglotlina.Nodes.ConjugationPair;
 import org.darisadesigns.polyglotlina.Nodes.EtyExternalParent;
+import org.darisadesigns.polyglotlina.Nodes.PhraseNode;
 import org.darisadesigns.polyglotlina.Nodes.PronunciationNode;
 import org.darisadesigns.polyglotlina.Nodes.TypeNode;
 import org.darisadesigns.polyglotlina.Nodes.WordClass;
@@ -133,8 +134,7 @@ public class PExportToHTML {
 
             if (chkLocalCon) buildLocalToCon();
 
-
-            // TODO: Phrasebook
+            if (chkPrintPhrases) buildPhrases();
 
             // TODO: Grammar + Subheaders for each chapter
 
@@ -414,9 +414,35 @@ public class PExportToHTML {
             
             writer.write("</div>\n<hr>\n\n");
         } catch (IOException e) {
-            System.err.println("Error while building conlang to local dictionary: " + e.getMessage());
+            System.err.println("Error while building locallang to conlang dictionary: " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("Error while building conlang to local dictionary: " + e.getMessage());
+            System.err.println("Error while building locallang to conlang dictionary: " + e.getMessage());
+        }
+    }
+
+    private static void buildPhrases() {
+        try{
+            writer.write("<div id=\"phrasebook\"><h2 id=\""+ phraseTitle + "\">" + phraseTitle + "</h2>\n");
+
+            for (PhraseNode curNode : _core.getPhraseManager().getAllValues()) {
+
+                // Phrase's title
+                writer.write("<h3>" + curNode.getGloss() + "</h3>\n");
+
+                // Phrase
+                writer.write("<p>" + _core.localLabel() + " Phrase: " + curNode.getLocalPhrase() +"</p>\n");
+
+                // Phrase in conlang
+                writer.write("<p>" + _core.conLabel() + " Phrase: <span class=\"conlang\">" + curNode.getConPhrase() +"</span></p>\n");
+
+                // Pronunciation, if any
+                if (curNode.getPronunciation().length() > 0) writer.write("<p>Pronunciation: /" + curNode.getPronunciation() +"/</p>\n");
+
+                // Notes, if any
+                if (curNode.getNotes().length() > 0) writer.write("<p>Notes: " + curNode.getNotes() +"</p>\n");
+            }
+        } catch (IOException e) {
+            System.err.println("Error while building phrasebook: " + e.getMessage());
         }
     }
 
