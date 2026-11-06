@@ -30,7 +30,11 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import org.darisadesigns.polyglotlina.CustomControls.GrammarChapNode;
+import org.darisadesigns.polyglotlina.CustomControls.GrammarSectionNode;
 import org.darisadesigns.polyglotlina.Desktop.DesktopPropertiesManager;
 import org.darisadesigns.polyglotlina.Nodes.ConWord;
 import org.darisadesigns.polyglotlina.Nodes.ConjugationNode;
@@ -40,6 +44,7 @@ import org.darisadesigns.polyglotlina.Nodes.PhraseNode;
 import org.darisadesigns.polyglotlina.Nodes.PronunciationNode;
 import org.darisadesigns.polyglotlina.Nodes.TypeNode;
 import org.darisadesigns.polyglotlina.Nodes.WordClass;
+import org.darisadesigns.polyglotlina.Nodes.ImageNode;
 
 public class PExportToHTML {
 
@@ -74,6 +79,8 @@ public class PExportToHTML {
     // Due to needing language names from core, these two cannot be constants
     private static String localToConTitle = "LocalToCon";
     private static String conToLocalTitle = "ConToLocal";
+    // Regex for parsing image tags
+    private static final Pattern IMG_PATTERN = Pattern.compile("<img\\s+src=\"(\\d+);\">");
 
     public static void exportHTML(String txtSavePath, String txtForeword, boolean chkConLocal, boolean chkLocalCon, boolean chkOrtho, String txtSubtitle, String txtTitle, boolean chkGloss, boolean chkGrammar, boolean chkEtymology, boolean chkPrintConjugations, boolean chkPrintPhrases, boolean chkEmbedCon, boolean chkEmbedLoc, String chapterOrder, DictCore core) throws IOException {
         // Set up received parameters to private variables to make calling each builder function neater
@@ -122,6 +129,8 @@ public class PExportToHTML {
             buildFrontPage();
             
             // TODO: Controls like "expand/collapse all etymology trees (collapsed by default)" to TOC page or somewhere else that makes sense
+            // TODO: Grammar subheaders to TOC
+            // TODO: Check if grammar is to be built in buildTOC and find the subheaders in a separate function
             buildTOC();
 
             if(_txtForeword.length() > 0) buildForeword();
@@ -136,7 +145,7 @@ public class PExportToHTML {
 
             if (chkPrintPhrases) buildPhrases();
 
-            // TODO: Grammar + Subheaders for each chapter
+            if (chkGrammar) buildGrammar();
 
             // Close the HTML file
             writer.write("    \n</body>\n</html>");
@@ -156,6 +165,8 @@ public class PExportToHTML {
         String ret = "";
 
         // Force font names into English to parse bolding and italics out of them because nothing else is doing the trick in this implementation
+        // Update: Changing the local font before exporting seems to make .isBold() and .isItalic() work (for confont they seem to work already)
+        // TODO: Investigate and either fix whatever is broken (if feasible) or document the workaround on the export UI
         String conName = con.getFontName(java.util.Locale.US).toLowerCase();
         String locName = loc.getFontName(java.util.Locale.US).toLowerCase();
 
@@ -171,8 +182,8 @@ public class PExportToHTML {
         }
 
         // Build the conlang and locallang styles
-        ret = ret + ".conlang {font-family: " + con.getFamily() + "; font-size: " + con.getSize() + "px;" +  ((conB && _core.getPropertiesManager().getCachedFont() != null) ? "" : "font-weight: " + (conName.contains("bold") ? "bold" : "normal") + "; font-style: " + (conName.contains("italic") ? "italic" : "normal") + ";") + "}\n";
-        ret = ret + ".locallang {font-family: " + loc.getFamily() + "; font-size: " + loc.getSize() + "px;" + ((locB && _core.getPropertiesManager().getCachedLocalFont() != null) ? "" : "font-weight: " + (locName.contains("bold") ? "bold" : "normal") + "; font-style: " + (locName.contains("italic") ? "italic" : "normal") + ";") + "}\n";
+        ret = ret + ".conlang {font-family: " + con.getFamily() + "; font-size: " + con.getSize() + "px;" +  ((conB && _core.getPropertiesManager().getCachedFont() != null) ? "" : "font-weight: " + ((conName.contains("bold") || con.isBold()) ? "bold" : "normal") + "; font-style: " + ((conName.contains("italic") || con.isItalic()) ? "italic" : "normal") + ";") + "}\n";
+        ret = ret + ".locallang {font-family: " + loc.getFamily() + "; font-size: " + loc.getSize() + "px;" + ((locB && _core.getPropertiesManager().getCachedLocalFont() != null) ? "" : "font-weight: " + ((locName.contains("bold") || loc.isBold()) ? "bold" : "normal") + "; font-style: " + ((locName.contains("italic") || loc.isItalic()) ? "italic" : "normal") + ";") + "}\n";
 
         return ret;
     }
@@ -183,7 +194,9 @@ public class PExportToHTML {
             writer.write("<div id=\"frontpage\">");
             writer.write("<h1>" + _mainTitle +"</h1>\n");
             if (_txtSubtitle.length() > 0) writer.write("<h2>"+ _txtSubtitle + "</h2>");
-            if (author.length() > 0) writer.write("<p>" + author + "</p>");
+            // TODO: Author section image caching isn't working (so images in it appear broken after restarting the application). Investigate
+            // TODO: Figure out how to get image ID from author, longer definition and potentially also foreword for encoding them (regex'ing the local cache file paths is not feasible)
+            if (author.length() > 0) writer.write("<p>" + encodeImages(author) + "</p>");
             writer.write("</div>\n<hr>\n\n");
         } catch (IOException e) {
             System.err.println("Error while building front page: " + e.getMessage());
@@ -235,7 +248,7 @@ public class PExportToHTML {
     private static void buildForeword(){
         try{
             writer.write("<div id=\"foreword\"><h2 id=\""+ forewordLink + "\">" + forewordTitle + "</h2>\n");
-            _txtForeword = _txtForeword.replaceAll("\n", "<br>");
+            _txtForeword = encodeImages(_txtForeword.replaceAll("\n", "<br>"));
             writer.write("<p>" + _txtForeword + "</p></div>\n<hr>\n\n");
         } catch (IOException e) {
             System.err.println("Error while building foreword: " + e.getMessage());
@@ -335,7 +348,7 @@ public class PExportToHTML {
                 if (curWord.getLocalWord().length() > 0) writer.write("<p>Short definition: " + curWord.getLocalWord() + "</p>\n");
 
                 // If longer definition exists, write it
-                if (stripHTML(curWord.getDefinition(), false).trim().length() > 0) writer.write("<br><p><b>Longer definition</b></p><p>" + curWord.getDefinition().trim() + "</p><br>\n");
+                if (stripHTML(curWord.getDefinition(), false).trim().length() > 0) writer.write("<br><p><b>Longer definition</b></p><p>" + encodeImages(curWord.getDefinition().trim()) + "</p><br>\n");
 
                 // If word has conjugations and they've been selected for exporting, write them
                 if (_chkPrintConjugations) buildConJugations(curWord);
@@ -403,7 +416,7 @@ public class PExportToHTML {
                 if (asso.length() > 0 || val.length() > 0 || free.length() > 0) writer.write(asso + free + val);
                 
                 // If longer definition exists, write it
-                if (stripHTML(curWord.getDefinition(), false).trim().length() > 0) writer.write("<br><p><b>Longer definition</b></p><p>" + curWord.getDefinition().trim() + "</p><br>\n");
+                if (stripHTML(curWord.getDefinition(), false).trim().length() > 0) writer.write("<br><p><b>Longer definition</b></p><p>" + encodeImages(curWord.getDefinition().trim()) + "</p><br>\n");
                 
                 // If word has conjugations and they've been selected for exporting, write them
                 if (_chkPrintConjugations) buildConJugations(curWord);
@@ -441,8 +454,29 @@ public class PExportToHTML {
                 // Notes, if any
                 if (curNode.getNotes().length() > 0) writer.write("<p>Notes: " + curNode.getNotes() +"</p>\n");
             }
+            writer.write("</div>\n<hr>\n\n");
         } catch (IOException e) {
             System.err.println("Error while building phrasebook: " + e.getMessage());
+        }
+    }
+
+    private static void buildGrammar(){
+        try{
+            writer.write("<div id=\"grammar\"><h2 id=\""+ grammarTitle + "\">" + grammarTitle + "</h2>\n");
+            for (GrammarChapNode curNode : _core.getGrammarManager().getChapters()) {
+                // TODO: ID to subheader for TOC. Running int + "grammar" easiest?
+                writer.write("<h3 id=\"" + "TODO" + "\">" + curNode.getName() + "</h3>\n");
+                
+                for (int i = 0; i < curNode.getChildCount(); i++) {
+                    GrammarSectionNode curSec = (GrammarSectionNode) curNode.getChild(i);
+                    writer.write("<h4>" + curSec.getName() + "</h4>\n");
+                    
+                    writer.write(formatGrammar(curSec.getSectionText()));
+                }
+            }
+            writer.write("</div>\n<hr>\n\n");
+        } catch (IOException e) {
+            System.err.println("Error while building grammar: " + e.getMessage());
         }
     }
 
@@ -531,6 +565,68 @@ public class PExportToHTML {
         if(stripHTML(curWord.getEtymNotes(), true).length() > 0) writer.write("<p>" + curWord.getEtymNotes().trim() + "</p>\n");
         
         writer.write("</details>\n");
+    }
+
+    // Formats grammar section text to do linebreaks and replaces the deprecated <font> tag with correct tags
+    private static String formatGrammar(String grammar){
+
+        // Linebreaks
+        String ret = grammar.replaceAll("\n</font><font", "\n</font><br><font");
+
+        // Styling
+        String conFont = _core.getPropertiesManager().getFontConFamily();
+        String locFont = _core.getPropertiesManager().getFontLocalFamily();
+        ret = ret.replaceAll("face=\"" + conFont + "\"", "class=\"conlang\" ")
+                 .replaceAll("face=\"" + locFont + "\"", "class=\"locallang\" ")
+                 .replaceAll("size=\"", "style=\"font-size: ")
+                 .replaceAll("\"color=\"", "px; color:")
+                 .replaceAll("\">", ";\">");
+
+        // Replace opening and closing <font> tags with <p> (for full paragraphs) (and watch out for images that are at the end of a chapter!)
+        ret = ret.replaceFirst("<font", "<p");
+        if (ret.lastIndexOf("</font>") > -1) ret = ret.substring(0, ret.lastIndexOf("</font>")) + "</p>" + ret.substring(ret.lastIndexOf("</font>")+7);
+
+        // Iterate through the paragraphs using line breaks to get <span> tags (font changes in the middle of paragraph) right
+        String[] lines = ret.split("\n");
+        String finRet = "";
+        String helper = "";
+        for (String line : lines){
+            helper = line.replaceAll("</font><br><font", "</p><br><p")
+                         .replaceFirst("</font><font", "<span")
+                         .replaceAll("<font", "<span")
+                         .replaceAll("</font>", "</span>");
+            if (helper.indexOf("<span") > -1) helper = helper + "</span>";
+
+            // Encode any image on this line
+            if(helper.indexOf("<img") != -1) helper = encodeImages(helper);
+
+            // If the text line is empty, replace it with a <br> tag for correct line break
+            if (helper.indexOf("<img") == -1 && helper.endsWith(";\">")) finRet = finRet + "\n<br>\n";
+            else finRet = finRet + helper;
+        }
+
+        // Clean up any wrongly ordered paragraph-closers, remove unnecessary <br> tags and fix <br></p> ordering
+        finRet = finRet.replaceAll("</p></span>", "</span></p>")
+                       .replaceAll("</p><br><p", "\n</p><p")
+                       .replaceAll("<br>\n\n</p>", "</p>\n\n<br>");
+        return finRet;
+    }
+
+    // Encodes embedded images into Base64 and adds them to the <img> tag
+    private static String encodeImages(String line){
+        Matcher matcher = IMG_PATTERN.matcher(line);
+        StringBuilder sb = new StringBuilder();
+
+        // Replace found IDs with encoded images
+        while (matcher.find()) {
+            int imageId = Integer.parseInt(matcher.group(1));
+            String replacement = "<img src=\"data:image/png;base64," + Base64.getEncoder().encodeToString(_core.getImageCollection().getNodeById(imageId).getImageBytes()) + "\">";
+            matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+        }
+        // Append any remaining text after the last match
+        matcher.appendTail(sb);
+
+        return sb.toString();
     }
 
     // Helper to escape special characters (<, >, &) in HTML
