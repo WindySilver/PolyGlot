@@ -45,6 +45,7 @@ import org.darisadesigns.polyglotlina.Nodes.PronunciationNode;
 import org.darisadesigns.polyglotlina.Nodes.TypeNode;
 import org.darisadesigns.polyglotlina.Nodes.WordClass;
 import org.darisadesigns.polyglotlina.Nodes.ImageNode;
+import org.darisadesigns.polyglotlina.WebInterface;
 
 public class PExportToHTML {
 
@@ -79,8 +80,9 @@ public class PExportToHTML {
     // Due to needing language names from core, these two cannot be constants
     private static String localToConTitle = "LocalToCon";
     private static String conToLocalTitle = "ConToLocal";
-    // Regex for parsing image tags
-    private static final Pattern IMG_PATTERN = Pattern.compile("<img\\s+src=\"(\\d+);\">");
+    // Regex patterns for parsing image tags
+    private static final Pattern IMG_PATTERN_GRAMMAR = Pattern.compile("<img\\s+src=\"(\\d+);\">");
+    private static final Pattern IMG_PATTERN_OTHERS = Pattern.compile("<img\\s+src=\"(\\d+)\">");
 
     public static void exportHTML(String txtSavePath, String txtForeword, boolean chkConLocal, boolean chkLocalCon, boolean chkOrtho, String txtSubtitle, String txtTitle, boolean chkGloss, boolean chkGrammar, boolean chkEtymology, boolean chkPrintConjugations, boolean chkPrintPhrases, boolean chkEmbedCon, boolean chkEmbedLoc, String chapterOrder, DictCore core) throws IOException {
         // Set up received parameters to private variables to make calling each builder function neater
@@ -194,9 +196,8 @@ public class PExportToHTML {
             writer.write("<div id=\"frontpage\">");
             writer.write("<h1>" + _mainTitle +"</h1>\n");
             if (_txtSubtitle.length() > 0) writer.write("<h2>"+ _txtSubtitle + "</h2>");
-            // TODO: Author section image caching isn't working (so images in it appear broken after restarting the application). Investigate
-            // TODO: Figure out how to get image ID from author, longer definition and potentially also foreword for encoding them (regex'ing the local cache file paths is not feasible)
-            if (author.length() > 0) writer.write("<p>" + encodeImages(author) + "</p>");
+            // Low-priority TODO: Author section and Part of Speech notes' image caching don't work, so images in them appear broken in UI after restarting the application (author images work in this export, POS notes not tested but likely work too)
+            if (author.length() > 0) writer.write("<p>" + encodeImages(WebInterface.archiveHTML(author, _core), IMG_PATTERN_OTHERS) + "</p>");
             writer.write("</div>\n<hr>\n\n");
         } catch (IOException e) {
             System.err.println("Error while building front page: " + e.getMessage());
@@ -248,7 +249,7 @@ public class PExportToHTML {
     private static void buildForeword(){
         try{
             writer.write("<div id=\"foreword\"><h2 id=\""+ forewordLink + "\">" + forewordTitle + "</h2>\n");
-            _txtForeword = encodeImages(_txtForeword.replaceAll("\n", "<br>"));
+            _txtForeword = encodeImages(WebInterface.archiveHTML(_txtForeword.replaceAll("\n", "<br>"), _core), IMG_PATTERN_OTHERS);
             writer.write("<p>" + _txtForeword + "</p></div>\n<hr>\n\n");
         } catch (IOException e) {
             System.err.println("Error while building foreword: " + e.getMessage());
@@ -348,7 +349,7 @@ public class PExportToHTML {
                 if (curWord.getLocalWord().length() > 0) writer.write("<p>Short definition: " + curWord.getLocalWord() + "</p>\n");
 
                 // If longer definition exists, write it
-                if (stripHTML(curWord.getDefinition(), false).trim().length() > 0) writer.write("<br><p><b>Longer definition</b></p><p>" + encodeImages(curWord.getDefinition().trim()) + "</p><br>\n");
+                if (stripHTML(curWord.getDefinition(), false).trim().length() > 0) writer.write("<br><p><b>Longer definition</b></p><p>" + encodeImages(WebInterface.archiveHTML(curWord.getDefinition().trim(), _core), IMG_PATTERN_OTHERS) + "</p><br>\n");
 
                 // If word has conjugations and they've been selected for exporting, write them
                 if (_chkPrintConjugations) buildConJugations(curWord);
@@ -416,7 +417,7 @@ public class PExportToHTML {
                 if (asso.length() > 0 || val.length() > 0 || free.length() > 0) writer.write(asso + free + val);
                 
                 // If longer definition exists, write it
-                if (stripHTML(curWord.getDefinition(), false).trim().length() > 0) writer.write("<br><p><b>Longer definition</b></p><p>" + encodeImages(curWord.getDefinition().trim()) + "</p><br>\n");
+                if (stripHTML(curWord.getDefinition(), false).trim().length() > 0) writer.write("<br><p><b>Longer definition</b></p><p>" + encodeImages(WebInterface.archiveHTML(curWord.getDefinition().trim(), _core), IMG_PATTERN_OTHERS) + "</p><br>\n");
                 
                 // If word has conjugations and they've been selected for exporting, write them
                 if (_chkPrintConjugations) buildConJugations(curWord);
@@ -598,7 +599,7 @@ public class PExportToHTML {
             if (helper.indexOf("<span") > -1) helper = helper + "</span>";
 
             // Encode any image on this line
-            if(helper.indexOf("<img") != -1) helper = encodeImages(helper);
+            if(helper.indexOf("<img") != -1) helper = encodeImages(helper, IMG_PATTERN_GRAMMAR);
 
             // If the text line is empty, replace it with a <br> tag for correct line break
             if (helper.indexOf("<img") == -1 && helper.endsWith(";\">")) finRet = finRet + "\n<br>\n";
@@ -613,8 +614,8 @@ public class PExportToHTML {
     }
 
     // Encodes embedded images into Base64 and adds them to the <img> tag
-    private static String encodeImages(String line){
-        Matcher matcher = IMG_PATTERN.matcher(line);
+    private static String encodeImages(String line, Pattern pattern){
+        Matcher matcher = pattern.matcher(line);
         StringBuilder sb = new StringBuilder();
 
         // Replace found IDs with encoded images

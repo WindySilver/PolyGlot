@@ -247,6 +247,7 @@ public class ScrPrintToHTML extends PDialog {
         txtSubtitle = new PTextField(core, true, "Subtitle");
         jScrollPane2 = new javax.swing.JScrollPane();
         txtForeword = new PTextPane(core, true, "-- Author Foreword --");
+        ((PTextPane)txtForeword).setDisableMedia(true); // Images don't work in foreword, so better disable them
         btnPrint = new PButton(nightMode);
         btnCancel = new PButton(nightMode);
 
