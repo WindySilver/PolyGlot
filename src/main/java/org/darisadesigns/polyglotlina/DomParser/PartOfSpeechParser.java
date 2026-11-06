@@ -23,6 +23,7 @@ import java.util.List;
 import org.darisadesigns.polyglotlina.DictCore;
 import org.darisadesigns.polyglotlina.Nodes.TypeNode;
 import org.darisadesigns.polyglotlina.PGTUtil;
+import org.darisadesigns.polyglotlina.WebInterface;
 import org.w3c.dom.Node;
 
 /**
@@ -59,7 +60,7 @@ public class PartOfSpeechParser extends BaseParser {
                 partOfSpeech.setValue(node.getTextContent());
             }
             case PGTUtil.POS_NOTES_XID, PGTUtil.POS_NOTES_XID_LEGACY -> {
-                partOfSpeech.setNotes(node.getTextContent());
+                partOfSpeech.setNotes(WebInterface.unarchiveHTML(node.getTextContent(), core));
             }
             case PGTUtil.POS_DEF_MAN_XID, PGTUtil.POS_DEF_MAN_XID_LEGACY -> {
                 partOfSpeech.setDefMandatory(node.getTextContent().equals(PGTUtil.TRUE));

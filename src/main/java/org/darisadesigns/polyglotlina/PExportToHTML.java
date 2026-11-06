@@ -202,7 +202,6 @@ public class PExportToHTML {
             writer.write("<div id=\"frontpage\">");
             writer.write("<h1>" + _mainTitle +"</h1>\n");
             if (_txtSubtitle.length() > 0) writer.write("<h2>"+ _txtSubtitle + "</h2>");
-            // Low-priority TODO: Author section and Part of Speech notes' image caching don't work, so images in them appear broken in UI after restarting the application (author images work in this export, POS notes not tested but likely work too)
             if (author.length() > 0) writer.write("<p>" + encodeImages(WebInterface.archiveHTML(author, _core), IMG_PATTERN_OTHERS) + "</p>");
             writer.write("</div>\n<hr>\n\n");
         } catch (IOException e) {

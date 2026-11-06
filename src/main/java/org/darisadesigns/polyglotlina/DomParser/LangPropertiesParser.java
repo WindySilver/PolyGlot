@@ -23,6 +23,7 @@ import java.util.List;
 import org.darisadesigns.polyglotlina.DictCore;
 import org.darisadesigns.polyglotlina.ManagersCollections.PropertiesManager;
 import org.darisadesigns.polyglotlina.PGTUtil;
+import org.darisadesigns.polyglotlina.WebInterface;
 import org.w3c.dom.Node;
 
 /**
@@ -83,7 +84,8 @@ public class LangPropertiesParser extends BaseParser {
                 propMan.setUseLocalWordLex(node.getTextContent().equals(PGTUtil.TRUE));
             }
             case PGTUtil.LANG_PROP_AUTH_COPYRIGHT_XID -> {
-                propMan.setCopyrightAuthorInfo(node.getTextContent());
+                // IDK why this one specifically needs archive->unarchive to make images in this section work but this does make it work
+                propMan.setCopyrightAuthorInfo(WebInterface.unarchiveHTML(WebInterface.archiveHTML(node.getTextContent(), core), core));
             }
             case PGTUtil.LANG_PROP_LOCAL_NAME_XID -> {
                 propMan.setLocalLangName(node.getTextContent());
