@@ -87,7 +87,6 @@ public class PExportToHTML {
     public static void exportHTML(String txtSavePath, String txtForeword, boolean chkConLocal, boolean chkLocalCon, boolean chkOrtho, String txtSubtitle, String txtTitle, boolean chkGloss, boolean chkGrammar, boolean chkEtymology, boolean chkPrintConjugations, boolean chkPrintPhrases, boolean chkEmbedCon, boolean chkEmbedLoc, String chapterOrder, DictCore core) throws IOException {
         // Set up received parameters to private variables to make calling each builder function neater
         _txtForeword = txtForeword;
-        // TODO: While building the main sections, check if any of the chk booleans are needed outside this main builder
         _chkConLocal = chkConLocal;
         _chkLocalCon = chkLocalCon;
         _chkOrtho = chkOrtho;
@@ -143,17 +142,17 @@ public class PExportToHTML {
 
             if(_txtForeword.length() > 0) buildForeword();
 
-            if(chkOrtho) buildOrthography();
+            if(_chkOrtho) buildOrthography();
 
-            if(chkGloss) buildGlossKey();
+            if(_chkGloss) buildGlossKey();
 
-            if(chkConLocal) buildConToLocal();
+            if(_chkConLocal) buildConToLocal();
 
-            if (chkLocalCon) buildLocalToCon();
+            if (_chkLocalCon) buildLocalToCon();
 
-            if (chkPrintPhrases) buildPhrases();
+            if (_chkPrintPhrases) buildPhrases();
 
-            if (chkGrammar) buildGrammar();
+            if (_chkGrammar) buildGrammar();
 
             // Close the HTML file
             writer.write("    \n</body>\n</html>");
