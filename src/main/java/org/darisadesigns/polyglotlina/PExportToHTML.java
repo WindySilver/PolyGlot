@@ -127,12 +127,18 @@ public class PExportToHTML {
             "th, td {padding: 0.3em;}" +
             fonts +
             "</style>\n");
+            writer.write("<script>function openAll() {document.body.querySelectorAll('details')" +
+                ".forEach((e) => {(e.hasAttribute('open')) ?" +
+                "e.removeAttribute('open') : e.setAttribute('open',true);" +
+                "})}" +
+                "function closeAll() {document.body.querySelectorAll('details')" +
+                ".forEach((e) => {(e.hasAttribute('open')) ?" +
+                "e.removeAttribute('open') : e.setAttribute('open',false);" +
+                "})}" +
+                "</script>");
             writer.write("</head>\n<body>\n");
             buildFrontPage();
             
-            // TODO: Controls like "expand/collapse all etymology trees (collapsed by default)" to TOC page or somewhere else that makes sense
-            // TODO: Grammar subheaders to TOC
-            // TODO: Check if grammar is to be built in buildTOC and find the subheaders in a separate function
             buildTOC();
 
             if(_txtForeword.length() > 0) buildForeword();
@@ -212,6 +218,9 @@ public class PExportToHTML {
                 .toArray();
 
             writer.write("<div id=\"TOC\">\n<h2>Table of Contents</h2>\n<ul>\n");
+            writer.write("<button onclick=\"openAll()\">Open all etymology trees</button>");
+            writer.write("<button onclick=\"closeAll()\">Close all etymology trees</button>");
+
             if (_txtForeword.length() > 0) writer.write("<li><a href=\"#" + forewordLink + "\">" + forewordTitle + "</a></li>\n");
 
             for (int i : order){
@@ -232,7 +241,18 @@ public class PExportToHTML {
                         if (_chkPrintPhrases) writer.write("<li><a href=\"#" + phraseTitle + "\">" + phraseTitle + "</a></li>\n");
                         break;
                     case PGTUtil.CHAP_GRAMMAR:
-                        if (_chkGrammar) writer.write("<li><a href=\"#" + grammarTitle + "\">" + grammarTitle + "</a></li>\n");
+                        if (_chkGrammar) {
+                            writer.write("<li><a href=\"#" + grammarTitle + "\">" + grammarTitle + "</a></li>\n");
+                            int subheaders = 1;
+                            if(_core.getGrammarManager().getChapters().length > 0){
+                                writer.write("<ul>\n");
+                                for (GrammarChapNode curNode : _core.getGrammarManager().getChapters()) {
+                                    writer.write("<li><a href=\"#GrammarC" + subheaders + "\">" + curNode.getName() + "</a></li>\n");
+                                    subheaders++;
+                                }
+                                writer.write("</ul>\n");
+                            }
+                        }
                         break;
                     default:
                         throw new IllegalArgumentException("Unrecognized chapter key: " + i);
@@ -464,13 +484,16 @@ public class PExportToHTML {
     private static void buildGrammar(){
         try{
             writer.write("<div id=\"grammar\"><h2 id=\""+ grammarTitle + "\">" + grammarTitle + "</h2>\n");
+            int subheaders = 1;
+            int subSubHeaders = 1;
             for (GrammarChapNode curNode : _core.getGrammarManager().getChapters()) {
-                // TODO: ID to subheader for TOC. Running int + "grammar" easiest?
-                writer.write("<h3 id=\"" + "TODO" + "\">" + curNode.getName() + "</h3>\n");
+                writer.write("<h3 id=\"GrammarC" + subheaders + "\">" + curNode.getName() + "</h3>\n");
+                subheaders++;
                 
                 for (int i = 0; i < curNode.getChildCount(); i++) {
                     GrammarSectionNode curSec = (GrammarSectionNode) curNode.getChild(i);
-                    writer.write("<h4>" + curSec.getName() + "</h4>\n");
+                    writer.write("<h4 id=\"GrammarSC" + subSubHeaders + "\">" + curSec.getName() + "</h4>\n");
+                    subSubHeaders++;
                     
                     writer.write(formatGrammar(curSec.getSectionText()));
                 }
