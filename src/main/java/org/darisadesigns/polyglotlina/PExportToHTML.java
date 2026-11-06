@@ -173,12 +173,13 @@ public class PExportToHTML {
 
         // Force font names into English to parse bolding and italics out of them because nothing else is doing the trick in this implementation
         // Update: Changing the local font before exporting seems to make .isBold() and .isItalic() work (for confont they seem to work already)
-        // TODO: Investigate and either fix whatever is broken (if feasible) or document the workaround on the export UI
+        // Update2: Tried to fix this. Saw so much wackery occurring with fonts' italics and bolding (especially localfont's) that I'm now very disoriented and decided to give up
+        // TODO for someone who's more familiar with how these fonts work: Investigate this issue
         String conName = con.getFontName(java.util.Locale.US).toLowerCase();
         String locName = loc.getFontName(java.util.Locale.US).toLowerCase();
 
         // Embed fonts if options for that were selected and the fonts have been cached (in other words, changed from default)
-        // Very low-priority TODO: Find the default font location for embedding that?
+        // Very low-priority TODO for someone who wants to embed the Charis font: Embed default font. Location: UNICODE_FONT_LOCATION
         if(conB && _core.getPropertiesManager().getCachedFont() != null){
             ret = "@font-face {\nfont-family: '" + con.getFamily() + "';\n";
             ret = ret + "src: url('data:font/woff2;charset=utf-8;base64," + Base64.getEncoder().encodeToString(_core.getPropertiesManager().getCachedFont()) + "') format('woff2');}\n";
@@ -284,12 +285,11 @@ public class PExportToHTML {
             String tableBuilding = "<table>\n<tr>\n<th><b>Character(s)</b></th>\n<th><b>Pronunciation</b></th>\n</tr>\n";
             boolean usesRegex = false;
 
-            // Low-priority TODO: Isolate regex characters from the conlang font class
             for (PronunciationNode curNode : _core.getPronunciationMgr().getPronunciations()) {
                 // Check for regex usage
                 if(curNode.getValue().contains("$") || curNode.getValue().contains("^")) usesRegex = true;
                 // Build the next table row
-                tableBuilding = tableBuilding + "<tr>\n<td class=\"conlang\">" + curNode.getValue() + "</td>\n<td class=\"locallang\">" + curNode.getPronunciation() + "</td>\n</tr>\n";
+                tableBuilding = tableBuilding + "<tr>\n<td class=\"conlang\">" + isolateRegex(curNode.getValue()) + "</td>\n<td class=\"locallang\">" + curNode.getPronunciation() + "</td>\n</tr>\n";
              }
 
             if(usesRegex) writer.write("<p>Symbols $ and ^ indicate that elements of orthography must appear at the beginning or the end of a word.</p>\n");
@@ -297,6 +297,14 @@ public class PExportToHTML {
         } catch (IOException e) {
             System.err.println("Error while building orthography: " + e.getMessage());
         }
+    }
+
+    // Isolates regex characters from the conlang font class
+    private static String isolateRegex(String pronunciation){
+        String ret = pronunciation;
+        if(ret.contains("^")) ret = "<span class=\"locallang\">^</span>" + ret.substring(1);
+        if(ret.contains("$")) ret = ret.substring(0, ret.length()-1) + "<span class=\"locallang\">$</span>";
+        return ret;
     }
 
     private static void buildGlossKey(){
