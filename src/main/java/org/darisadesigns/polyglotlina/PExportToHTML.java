@@ -241,8 +241,10 @@ public class PExportToHTML {
                 .toArray();
 
             writer.write("<div id=\"TOC\">\n<h2>Table of Contents</h2>\n<ul>\n");
-            writer.write("<button onclick=\"openAll()\">Open all etymology trees</button>");
-            writer.write("<button onclick=\"closeAll()\">Close all etymology trees</button>");
+            if (_chkEtymology){
+                writer.write("<button onclick=\"openAll()\">Open all etymology trees</button>");
+                writer.write("<button onclick=\"closeAll()\">Close all etymology trees</button>");
+            }
 
             if (_txtForeword.length() > 0) writer.write("<li><a href=\"#" + forewordLink + "\">" + forewordTitle + "</a></li>\n");
 
@@ -425,8 +427,8 @@ public class PExportToHTML {
             String activeLetter = "";
             for (ConWord curWord : _core.getWordCollection().getNodesLocalOrder()) {
                 // Build letter sectioning when active first letter changes
-                if (!curWord.getValue().substring(0,1).equals(activeLetter)){
-                    activeLetter = curWord.getValue().substring(0,1);
+                if (!curWord.getLocalWord().substring(0,1).equals(activeLetter)){
+                    activeLetter = curWord.getLocalWord().substring(0,1);
                     writer.write("<h3><u><b class=\"conlang\">" + activeLetter +"</b> words</u></h3>\n\n");
                 }
 
