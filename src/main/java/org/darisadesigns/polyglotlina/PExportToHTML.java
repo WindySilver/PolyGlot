@@ -32,6 +32,7 @@ import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.*;
 
 import org.darisadesigns.polyglotlina.CustomControls.GrammarChapNode;
 import org.darisadesigns.polyglotlina.CustomControls.GrammarSectionNode;
@@ -45,6 +46,7 @@ import org.darisadesigns.polyglotlina.Nodes.PronunciationNode;
 import org.darisadesigns.polyglotlina.Nodes.TypeNode;
 import org.darisadesigns.polyglotlina.Nodes.WordClass;
 import org.darisadesigns.polyglotlina.Nodes.ImageNode;
+import org.darisadesigns.polyglotlina.Nodes.EtyTreeNode;
 import org.darisadesigns.polyglotlina.WebInterface;
 
 public class PExportToHTML {
@@ -125,6 +127,28 @@ public class PExportToHTML {
             "table, th, td {border: 1px solid; border-collapse: collapse; text-align: center;}" +
             "th, td {padding: 0.3em;}" +
             fonts +
+            ".branch { display: flex; align-items: center; }" +
+            ".group  { display: flex; flex-direction: column; }" +
+            ".stem   { width: 20px; border-top: 1px solid #888; }" +
+            ".node   { padding: 2px 6px; margin: 4px 0; border: 1px solid #888; white-space: nowrap; }" +
+            
+            "/* each sibling gets a stub to the vertical bar, plus a bar segment */" +
+            ".item { position: relative; display: flex; align-items: center; }" +
+            ".item::before, .item::after { content: \"\"; position: absolute; border: 0 solid #888; }" +
+
+            ".parents > .item  { padding-right: 20px; }" +
+            ".children > .item { padding-left: 20px; }" +
+            ".parents > .item { justify-content: flex-end; }" +
+
+            ".parents > .item::before  { right: 0; width: 20px; top: 50%; border-top-width: 1px; }" +
+            ".parents > .item::after   { right: 0; top: 0; bottom: 0; border-left-width: 1px; }" +
+            ".children > .item::before { left: 0; width: 20px; top: 50%; border-top-width: 1px; }" +
+            ".children > .item::after  { left: 0; top: 0; bottom: 0; border-left-width: 1px; }" +
+
+            "/* trim the bar so it only spans first sibling's center to last sibling's center */" +
+            ".item.first::after { top: 50%; }" +
+            ".item.last::after  { bottom: 50%; }" +
+            ".item.only::after  { display: none; }" +
             "</style>\n");
             writer.write("<script>function openAll() {document.body.querySelectorAll('details')" +
                 ".forEach((e) => {(e.hasAttribute('open')) ?" +
@@ -180,11 +204,11 @@ public class PExportToHTML {
 
         // Embed fonts if options for that were selected and the fonts have been cached (in other words, changed from default)
         // Very low-priority TODO for someone who wants to embed the Charis font: Embed default font. Location: UNICODE_FONT_LOCATION
-        if(conB && _core.getPropertiesManager().getCachedFont() != null){
+        if (conB && _core.getPropertiesManager().getCachedFont() != null){
             ret = "@font-face {\nfont-family: '" + con.getFamily() + "';\n";
             ret = ret + "src: url('data:font/woff2;charset=utf-8;base64," + Base64.getEncoder().encodeToString(_core.getPropertiesManager().getCachedFont()) + "') format('woff2');}\n";
         }
-        if(locB && _core.getPropertiesManager().getCachedLocalFont() != null){
+        if (locB && _core.getPropertiesManager().getCachedLocalFont() != null){
             ret = ret + "@font-face {\nfont-family: '" + loc.getFamily() + "';\n";
             ret = ret + "src: url('data:font/woff2;charset=utf-8;base64," + Base64.getEncoder().encodeToString(_core.getPropertiesManager().getCachedLocalFont()) + "') format('woff2');}\n";
         }
@@ -547,50 +571,126 @@ public class PExportToHTML {
         }
     }
 
-    private static void printParents(int wordID) throws IOException{
-        // Write any external parents first since they're the oldest of their own part of branch
-        if (_core.getEtymologyManager().getWordExternalParents(wordID).length > 0) {
-            for (EtyExternalParent extPar : _core.getEtymologyManager().getWordExternalParents(wordID)){
-                writer.write("<p>Ext parent: <span class=\"conlang\">" + extPar.toString() + "</span></p>\n");
+    // TODO: Links to each entry in the tree
+    private static EtyTreeNode collectParents(int wordID) {
+
+        EtyTreeNode node = new EtyTreeNode(
+                _core.getWordCollection().getNodeById(wordID).getValue());
+
+        // Collect any external parents first since they never have any parents of their own
+        for (EtyExternalParent extPar : _core.getEtymologyManager().getWordExternalParents(wordID)) {
+            node.getParents().add(new EtyTreeNode(extPar.toString()));
+        }
+
+        // In-language parents need to be gone through recursively
+        for (Integer parentID : _core.getEtymologyManager().getWordParentsIds(wordID)) {
+            node.getParents().add(collectParents(parentID));
+        }
+
+        return node;
+    }
+
+    // TODO: Links to each entry in the tree
+    private static EtyTreeNode collectChildren(int wordID) {
+        EtyTreeNode node = new EtyTreeNode(
+                _core.getWordCollection().getNodeById(wordID).getValue());
+
+        for (Integer childID : _core.getEtymologyManager().getChildren(wordID)) {
+            node.getChildren().add(collectChildren(childID));
+        }
+
+        return node;
+    }
+
+    /**
+     * Handles rendering the entire etymology tree
+     * @param root The root word
+     * @throws IOException
+     */
+    private static void renderFullTree(EtyTreeNode root) throws IOException {
+        writer.write("<div class=\"branch\">\n");
+
+        if (!root.getParents().isEmpty()) {
+            renderBranchGroup(root.getParents(), true);
+            writer.write("<div class=\"stem\"></div>\n");
+        }
+
+        writer.write("<div class=\"node\"><b>" + root.getLabel() + "</b></div>\n");
+
+        if (!root.getChildren().isEmpty()) {
+            writer.write("<div class=\"stem\"></div>\n");
+            renderBranchGroup(root.getChildren(), false);
+        }
+
+        writer.write("</div>\n");
+    }
+
+    /**
+     * Renders a column of sibling branches
+     * @param nodes The nodes of the branch
+     * @param parents Decides whether the branch group is for parents or children
+     * @throws IOException
+     */
+    private static void renderBranchGroup(List<EtyTreeNode> nodes, boolean parents) throws IOException {
+        writer.write("<div class=\"group " + (parents ? "parents" : "children") + "\">\n");
+        for (int i = 0; i < nodes.size(); i++) {
+            writer.write("<div class=\"item " + branchPosition(i, nodes.size()) + "\">\n");
+            renderBranch(nodes.get(i), parents);
+            writer.write("</div>\n");
+        }
+        writer.write("</div>\n");
+    }
+
+    /**
+     * Renders a singular branch
+     * @param node The node whose branch is being rendered
+     * @param parents Decides whether the branch is for parents or children
+     * @throws IOException
+     */
+    private static void renderBranch(EtyTreeNode node, boolean parents) throws IOException {
+        List<EtyTreeNode> next = parents ? node.getParents() : node.getChildren();
+        String nodeHtml = "<div class=\"node\">"
+                + node.getLabel() + "</div>\n";
+
+        writer.write("<div class=\"branch\">\n");
+        if (parents) {
+            if (!next.isEmpty()) {
+                renderBranchGroup(next, true);
+                writer.write("<div class=\"stem\"></div>\n");
+            }
+            writer.write(nodeHtml);
+        } else {
+            writer.write(nodeHtml);
+            if (!next.isEmpty()) {
+                writer.write("<div class=\"stem\"></div>\n");
+                renderBranchGroup(next, false);
             }
         }
-
-        for (Integer parentID : _core.getEtymologyManager().getWordParentsIds(wordID)) {
-            // Get to the end of the branch first
-            if (_core.getEtymologyManager().getWordExternalParents(parentID).length > 0 || _core.getEtymologyManager().getWordParentsIds(parentID).length > 0){
-                writer.write("<b>Start of main branch</b>");
-                 printParents(parentID);}            
-            // Write in-language parents when at the end of the branch
-                writer.write("<p>Parent: <span class=\"conlang\">" + _core.getWordCollection().getNodeById(parentID) + "</span></p>\n");
-        }
-            writer.write("<b>↓</b>");
+        writer.write("</div>\n");
     }
 
-    private static void printChildren(int wordID) throws IOException{
-        for (Integer childID : _core.getEtymologyManager().getChildren(wordID)) {
-            writer.write("<p>Child: <span class=\"conlang\">" + _core.getWordCollection().getNodeById(childID) + "</span></p>\n");
-            if (_core.getEtymologyManager().getChildren(childID).length > 0) {
-                writer.write("<b>↓</b>");
-                printChildren(childID);}
-        writer.write("<b>Next branching</b>");
-        }
+    /**
+     * Determines the branch's position in the branch group
+     * @param i The branch's index in the group
+     * @param size The total number of branches in the group
+     * @return The position of the branch in the group
+     */
+    private static String branchPosition(int i, int size) {
+        if (size == 1) return "only";
+        if (i == 0) return "first";
+        if (i == size - 1) return "last";
+        return "mid";
     }
 
-    // TODO: Refine formatting
-    // TODO: Links to each entry in the tree once formatting is better
     private static void buildEtymologyTree(ConWord curWord) throws IOException{
         
         writer.write("<br><details>\n<summary>Etymology</summary>\n");
 
-        // Get all the parents and write them from top to bottom
-        printParents(curWord.getId());
-
-        // Current word
-        writer.write("<p>Current: <span class=\"conlang\">" + curWord.getValue() + "</span></p>\n");
-
-        // Get all the children and write them from top to bottom
-        printChildren(curWord.getId());
-
+        // Build the data structure for curWord's etymology tree for rendering
+        EtyTreeNode root = new EtyTreeNode(curWord.getValue());
+        root.getParents().addAll(collectParents(curWord.getId()).getParents());
+        root.getChildren().addAll(collectChildren(curWord.getId()).getChildren());
+        renderFullTree(root);
         // If word has etymology notes, write them
         if(stripHTML(curWord.getEtymNotes(), true).length() > 0) writer.write("<p>" + curWord.getEtymNotes().trim() + "</p>\n");
         
