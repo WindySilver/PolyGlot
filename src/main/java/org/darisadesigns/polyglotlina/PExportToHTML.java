@@ -198,7 +198,12 @@ public class PExportToHTML {
         // Force font names into English to parse bolding and italics out of them because nothing else is doing the trick in this implementation
         // Update: Changing the local font before exporting seems to make .isBold() and .isItalic() work (for confont they seem to work already)
         // Update2: Tried to fix this. Saw so much wackery occurring with fonts' italics and bolding (especially localfont's) that I'm now very disoriented and decided to give up
-        // TODO for someone who's more familiar with how these fonts work: Investigate this issue
+        /* Update3: Fonts with bolding and italics in their name (e.g. Times New Roman or Open Sans) seem to work all the time at least to some degree (YMMV depending on font),
+        probably because the font name points to the right styling, so locallang's style being set plain somewhere doesn't matter. Seems like a logic error in setting the locallang's fontstyle.
+        A super low-priority thing to fix since you should be selecting font files directly instead of OS selection but it's been bothering me enough that I keep returning to this issue.
+        This is as far as I'll go with this, though. Might add a more detailed explanation of this behavior into OS selection window for future new users.
+        TODO: Rework the font styling to use font name, scrap the italics and bolding stuff and update font embed tooltips */
+        // TODO for someone who cares enough to deep-dive into fonts: Fix the aforementioned logic error with locallang fontstyle
         String conName = con.getFontName(java.util.Locale.US).toLowerCase();
         String locName = loc.getFontName(java.util.Locale.US).toLowerCase();
 
@@ -359,11 +364,11 @@ public class PExportToHTML {
                 // Build letter sectioning when active first letter changes
                 if (!curWord.getValue().substring(0,1).equals(activeLetter)){
                     activeLetter = curWord.getValue().substring(0,1);
-                    writer.write("<h3><u><b class=\"conlang\">" + activeLetter +"</b> words</u></h3>\n\n");
+                    writer.write("<h3 id=\"con-" + activeLetter + "\"><u><b class=\"conlang\">" + activeLetter +"</b> words</u></h3>\n\n");
                 }
 
                 // Build singular dictionary entry
-                writer.write("<h4 class=\"conlang\">" + curWord.getValue() + "</h4>\n");
+                writer.write("<h4 id=\"" + curWord.getValue().replaceAll(" ", "") + "\" class=\"conlang\">" + curWord.getValue() + "</h4>\n");
 
                 // If word has part of speech and/or pronunciation, write them (for formatting reasons, handle "both" and "just one" cases separately)
                 if (posNames.containsKey(curWord.getWordTypeId()) && curWord.getPronunciation().length() > 0) writer.write("<p>" + posNames.get(curWord.getWordTypeId()) + " - /" + curWord.getPronunciation() + "/" + "</p>\n");
@@ -429,11 +434,11 @@ public class PExportToHTML {
                 // Build letter sectioning when active first letter changes
                 if (!curWord.getLocalWord().substring(0,1).equals(activeLetter)){
                     activeLetter = curWord.getLocalWord().substring(0,1);
-                    writer.write("<h3><u><b class=\"conlang\">" + activeLetter +"</b> words</u></h3>\n\n");
+                    writer.write("<h3 id=\"loc-" + activeLetter + "\"><u><b class=\"conlang\">" + activeLetter +"</b> words</u></h3>\n\n");
                 }
 
                 // Build singular dictionary entry
-                writer.write("<h4 class=\"locallang\">" + curWord.getLocalWord() + "</h4><br>\n");
+                writer.write("<h4 id=\"" + curWord.getLocalWord().replaceAll(" ", "") + "\" class=\"locallang\">" + curWord.getLocalWord() + "</h4><br>\n");
                 writer.write("<p class=\"conlang\">" + curWord.getValue() + "</p>\n");
                 
                 // If word has part of speech and/or pronunciation, write them (for formatting reasons, handle "both" and "just one" cases separately)
@@ -573,11 +578,10 @@ public class PExportToHTML {
         }
     }
 
-    // TODO: Links to each entry in the tree
     private static EtyTreeNode collectParents(int wordID) {
 
-        EtyTreeNode node = new EtyTreeNode(
-                _core.getWordCollection().getNodeById(wordID).getValue());
+        EtyTreeNode node = new EtyTreeNode("<a href=\"#" + _core.getWordCollection().getNodeById(wordID).getValue().replaceAll(" ", "") + "\">" +
+        _core.getWordCollection().getNodeById(wordID).getValue() + "</a>");
 
         // Collect any external parents first since they never have any parents of their own
         for (EtyExternalParent extPar : _core.getEtymologyManager().getWordExternalParents(wordID)) {
@@ -592,10 +596,9 @@ public class PExportToHTML {
         return node;
     }
 
-    // TODO: Links to each entry in the tree
     private static EtyTreeNode collectChildren(int wordID) {
-        EtyTreeNode node = new EtyTreeNode(
-                _core.getWordCollection().getNodeById(wordID).getValue());
+        EtyTreeNode node = new EtyTreeNode("<a href=\"#" + _core.getWordCollection().getNodeById(wordID).getValue().replaceAll(" ", "") + "\">" +
+        _core.getWordCollection().getNodeById(wordID).getValue() + "</a>");
 
         for (Integer childID : _core.getEtymologyManager().getChildren(wordID)) {
             node.getChildren().add(collectChildren(childID));
@@ -685,7 +688,6 @@ public class PExportToHTML {
     }
 
     private static void buildEtymologyTree(ConWord curWord) throws IOException{
-        
         writer.write("<br><details>\n<summary>Etymology</summary>\n");
 
         // Build the data structure for curWord's etymology tree for rendering
@@ -693,6 +695,7 @@ public class PExportToHTML {
         root.getParents().addAll(collectParents(curWord.getId()).getParents());
         root.getChildren().addAll(collectChildren(curWord.getId()).getChildren());
         renderFullTree(root);
+
         // If word has etymology notes, write them
         if(stripHTML(curWord.getEtymNotes(), true).length() > 0) writer.write("<p>" + curWord.getEtymNotes().trim() + "</p>\n");
         
