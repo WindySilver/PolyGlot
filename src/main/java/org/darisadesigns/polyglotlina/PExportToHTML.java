@@ -120,13 +120,17 @@ public class PExportToHTML {
             writer.write("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
             writer.write("    <meta charset=\"UTF-8\">\n");
             writer.write("    <title>" + _mainTitle +"</title>\n");
-            // TODO: Styling
-            writer.write("    <style>body{}" +
+            writer.write("    <style>body{text-align: center;}" +
             "#frontpage{text-align: center;}" +
-            "#TOC * {list-style-type: none;}" +
-            "table, th, td {border: 1px solid; border-collapse: collapse; text-align: center;}" +
+            "#TOC {display: grid; justify-content: center;}" +
+            "#TOC ul {list-style-type: none; text-align: left;}" +
+            "#grammar p {text-align:left;}" +
+            "table, th, td {border: 1px solid; border-collapse: collapse; text-align: center; margin: auto;}" +
             "th, td {padding: 0.3em;}" +
+            ".dictEntry { border: solid 2px; padding: 1em;}" +
+            ".extlang { color: #2277CC; }" +
             fonts +
+            ".tree { display:flex; justify-content: center;}" +
             ".branch { display: flex; align-items: center; }" +
             ".group  { display: flex; flex-direction: column; }" +
             ".stem   { width: 20px; border-top: 1px solid #888; }" +
@@ -170,9 +174,9 @@ public class PExportToHTML {
 
             if(_chkGloss) buildGlossKey();
 
-            if(_chkConLocal) buildConToLocal();
-
             if (_chkLocalCon) buildLocalToCon();
+
+            if(_chkConLocal) buildConToLocal();
 
             if (_chkPrintPhrases) buildPhrases();
 
@@ -242,11 +246,12 @@ public class PExportToHTML {
                 .mapToInt(Integer::parseInt)
                 .toArray();
 
-            writer.write("<div id=\"TOC\">\n<h2>Table of Contents</h2>\n<ul>\n");
+            writer.write("<div id=\"TOC\">\n<h2>Table of Contents</h2>\n");
             if (_chkEtymology){
                 writer.write("<button onclick=\"openAll()\">Open all etymology trees</button>");
                 writer.write("<button onclick=\"closeAll()\">Close all etymology trees</button>");
             }
+            writer.write("<ul>\n");
 
             if (_txtForeword.length() > 0) writer.write("<li><a href=\"#" + forewordLink + "\">" + forewordTitle + "</a></li>\n");
 
@@ -349,7 +354,6 @@ public class PExportToHTML {
         }
     }
 
-    // TODO: Proper formatting
     private static void buildConToLocal() throws Exception {
         try{
             if (posNames == null) fetchPOS();
@@ -365,42 +369,47 @@ public class PExportToHTML {
                 }
 
                 // Build singular dictionary entry
-                writer.write("<h4 id=\"" + curWord.getValue().replaceAll(" ", "") + "\" class=\"conlang\">" + curWord.getValue() + "</h4>\n");
+                writer.write("<div class=\"dictEntry\"><h4 id=\"" + curWord.getValue().replaceAll(" ", "") + "\" class=\"conlang\">" + curWord.getValue() + "</h4>\n");
 
                 // If word has part of speech and/or pronunciation, write them (for formatting reasons, handle "both" and "just one" cases separately)
                 if (posNames.containsKey(curWord.getWordTypeId()) && curWord.getPronunciation().length() > 0) writer.write("<p>" + posNames.get(curWord.getWordTypeId()) + " - /" + curWord.getPronunciation() + "/" + "</p>\n");
                 else if (posNames.containsKey(curWord.getWordTypeId()) || curWord.getPronunciation().length() > 0) writer.write("<p>" + (posNames.containsKey(curWord.getWordTypeId()) ? posNames.get(curWord.getWordTypeId()) : "") + (curWord.getPronunciation().length() > 0 ? "/" + curWord.getPronunciation() + "/" : "") + "</p>\n");
 
                 // If word has a romanization, write it romanization
-                if (_core.getRomManager().getPronunciation(curWord.getValue()).length() > 0) writer.write("<p>Romanization: " + _core.getRomManager().getPronunciation(curWord.getValue()) + "</p>");
+                if (_core.getRomManager().getPronunciation(curWord.getValue()).length() > 0) writer.write("<p>Romanization: " + _core.getRomManager().getPronunciation(curWord.getValue()) + "</p>\n");
+
+                // If locallang translation exists, write it
+                if (curWord.getLocalWord().length() > 0) writer.write("<p>Short definition: <span class=\"locallang\">" + curWord.getLocalWord() + "</span></p>\n");
 
                 // If word has lexical classes, write them
                 String asso = "";
                 String val = "";
                 String free = "";
                 if(!curWord.getClassValues().isEmpty()){
+                    writer.write("<br>");
                     // Because the classes aren't automatically ordered by type, ordering needs to be built with builder strings
                     for (Entry<Integer, Integer> curEntry : curWord.getClassValues()) {
                         WordClass curClass = (WordClass) _core.getWordClassCollection()
                                 .getNodeById(curEntry.getKey());
                         // Associative class
-                        if (curClass.isAssociative()) asso = asso + "<p>" + curClass + ": " + _core.getWordCollection().getNodeById(curEntry.getValue()).getValue() + "</p>\n";
+                        if (curClass.isAssociative()) asso = asso + "<p>" + curClass + ": <span class=\"conlang\">" + _core.getWordCollection().getNodeById(curEntry.getValue()).getValue() + "</span></p>\n";
                         // Value class
                         else val = val + "<p>" + curClass + ": " + curClass.getValueById(curEntry.getValue()).getValue() + "</p>\n";
                     }
                 }
                 // Free text classes are saved separately from associative and value classes
-                if (!curWord.getClassTextValues().isEmpty()) {                
+                if (!curWord.getClassTextValues().isEmpty()) {
+                    // If linebreak was not made before, do it now
+                    if (curWord.getClassValues().isEmpty()) writer.write("<br>");
+
                     for (Entry<Integer, String> curEntry : curWord.getClassTextValues()) {
                         // Only list the class if it has a value
                         if (!curEntry.getValue().trim().isEmpty()) free = free + ("<p>" + _core.getWordClassCollection().getNodeById(curEntry.getKey()) + ": " + curEntry.getValue() + "</p>\n");
                     }
                 }
                 // Ordering in the Lexical Class UI is Associative, Free Text, Values. Will follow the same logic
-                if (asso.length() > 0 || val.length() > 0 || free.length() > 0) writer.write(asso + free + val);
+                if (asso.length() > 0 || val.length() > 0 || free.length() > 0) writer.write(asso + free + val + "<br>");
                 
-                // If locallang translation exists, write it
-                if (curWord.getLocalWord().length() > 0) writer.write("<p>Short definition: " + curWord.getLocalWord() + "</p>\n");
 
                 // If longer definition exists, write it
                 if (stripHTML(curWord.getDefinition(), false).trim().length() > 0) writer.write("<br><p><b>Longer definition</b></p><p>" + encodeImages(WebInterface.archiveHTML(curWord.getDefinition().trim(), _core), IMG_PATTERN_OTHERS) + "</p><br>\n");
@@ -410,6 +419,8 @@ public class PExportToHTML {
 
                 // If word has etymology and it has been selected for exporting, build the etymology tree
                 if (_chkEtymology && _core.getEtymologyManager().hasEtymology(curWord)) buildEtymologyTree(curWord);
+
+                writer.write("</div>\n");
             }
 
             writer.write("</div>\n<hr>\n\n");
@@ -420,7 +431,6 @@ public class PExportToHTML {
         }
     }
     
-    // TODO: Proper formatting
     private static void buildLocalToCon() {
         try{
             if (posNames == null) fetchPOS();
@@ -431,11 +441,11 @@ public class PExportToHTML {
                 // Build letter sectioning when active first letter changes
                 if (!curWord.getLocalWord().substring(0,1).equals(activeLetter)){
                     activeLetter = curWord.getLocalWord().substring(0,1);
-                    writer.write("<h3 id=\"loc-" + activeLetter + "\"><u><b class=\"conlang\">" + activeLetter +"</b> words</u></h3>\n\n");
+                    writer.write("<h3 id=\"loc-" + activeLetter + "\"><u><b class=\"locallang\">" + activeLetter +"</b> words</u></h3>\n\n");
                 }
 
                 // Build singular dictionary entry
-                writer.write("<h4 id=\"" + curWord.getLocalWord().replaceAll(" ", "") + "\" class=\"locallang\">" + curWord.getLocalWord() + "</h4><br>\n");
+                writer.write("<div class=\"dictEntry\"><h4 id=\"" + curWord.getLocalWord().replaceAll(" ", "") + "\" class=\"locallang\">" + curWord.getLocalWord() + "</h4><br>\n");
                 writer.write("<p class=\"conlang\">" + curWord.getValue() + "</p>\n");
                 
                 // If word has part of speech and/or pronunciation, write them (for formatting reasons, handle "both" and "just one" cases separately)
@@ -443,32 +453,35 @@ public class PExportToHTML {
                 else if (posNames.containsKey(curWord.getWordTypeId()) || curWord.getPronunciation().length() > 0) writer.write("<p>" + (posNames.containsKey(curWord.getWordTypeId()) ? posNames.get(curWord.getWordTypeId()) : "") + (curWord.getPronunciation().length() > 0 ? "/" + curWord.getPronunciation() + "/" : "") + "</p>\n");
                 
                 // If word has a romanization, write it romanization
-                if (_core.getRomManager().getPronunciation(curWord.getValue()).length() > 0) writer.write("<p>Romanization: " + _core.getRomManager().getPronunciation(curWord.getValue()) + "</p>");
+                if (_core.getRomManager().getPronunciation(curWord.getValue()).length() > 0) writer.write("<p>Romanization: " + _core.getRomManager().getPronunciation(curWord.getValue()) + "</p>\n");
 
                 // If word has lexical classes, write them
                 String asso = "";
                 String val = "";
                 String free = "";
                 if(!curWord.getClassValues().isEmpty()){
+                    writer.write("<br>");
                     // Because the classes aren't automatically ordered by type, ordering needs to be built with builder strings
                     for (Entry<Integer, Integer> curEntry : curWord.getClassValues()) {
                         WordClass curClass = (WordClass) _core.getWordClassCollection()
                                 .getNodeById(curEntry.getKey());
                         // Associative class
-                        if (curClass.isAssociative()) asso = asso + "<p>" + curClass + ": " + _core.getWordCollection().getNodeById(curEntry.getValue()).getValue() + "</p>\n";
+                        if (curClass.isAssociative()) asso = asso + "<p>" + curClass + ": <span class=\"conlang\">" + _core.getWordCollection().getNodeById(curEntry.getValue()).getValue() + "</span></p>\n";
                         // Value class
                         else val = val + "<p>" + curClass + ": " + curClass.getValueById(curEntry.getValue()).getValue() + "</p>\n";
                     }
                 }
                 // Free text classes are saved separately from associative and value classes
                 if (!curWord.getClassTextValues().isEmpty()) {                
+                    // If linebreak was not made before, do it now
+                    if (curWord.getClassValues().isEmpty()) writer.write("<br>");
                     for (Entry<Integer, String> curEntry : curWord.getClassTextValues()) {
                         // Only list the class if it has a value
                         if (!curEntry.getValue().trim().isEmpty()) free = free + ("<p>" + _core.getWordClassCollection().getNodeById(curEntry.getKey()) + ": " + curEntry.getValue() + "</p>\n");
                     }
                 }
                 // Ordering in the Lexical Class UI is Associative, Free Text, Values. Will follow the same logic
-                if (asso.length() > 0 || val.length() > 0 || free.length() > 0) writer.write(asso + free + val);
+                if (asso.length() > 0 || val.length() > 0 || free.length() > 0) writer.write(asso + free + val + "<br>");
                 
                 // If longer definition exists, write it
                 if (stripHTML(curWord.getDefinition(), false).trim().length() > 0) writer.write("<br><p><b>Longer definition</b></p><p>" + encodeImages(WebInterface.archiveHTML(curWord.getDefinition().trim(), _core), IMG_PATTERN_OTHERS) + "</p><br>\n");
@@ -478,6 +491,7 @@ public class PExportToHTML {
 
                 // If word has etymology and it has been selected for exporting, build the etymology tree
                 if (_chkEtymology && _core.getEtymologyManager().hasEtymology(curWord)) buildEtymologyTree(curWord);
+                writer.write("</div>\n");
             }            
             
             writer.write("</div>\n<hr>\n\n");
@@ -498,16 +512,16 @@ public class PExportToHTML {
                 writer.write("<h3>" + curNode.getGloss() + "</h3>\n");
 
                 // Phrase
-                writer.write("<p>" + _core.localLabel() + " Phrase: " + curNode.getLocalPhrase() +"</p>\n");
+                writer.write("<p>" + _core.localLabel() + " Phrase: " + curNode.getLocalPhrase().replaceAll("\n", "<br>") +"</p>\n");
 
                 // Phrase in conlang
-                writer.write("<p>" + _core.conLabel() + " Phrase: <span class=\"conlang\">" + curNode.getConPhrase() +"</span></p>\n");
+                writer.write("<p>" + _core.conLabel() + " Phrase: <span class=\"conlang\">" + curNode.getConPhrase().replaceAll("\n", "<br>") +"</span></p>\n");
 
                 // Pronunciation, if any
                 if (curNode.getPronunciation().length() > 0) writer.write("<p>Pronunciation: /" + curNode.getPronunciation() +"/</p>\n");
 
                 // Notes, if any
-                if (curNode.getNotes().length() > 0) writer.write("<p>Notes: " + curNode.getNotes() +"</p>\n");
+                if (curNode.getNotes().length() > 0) writer.write("<p>Notes: " + curNode.getNotes().replaceAll("\n", "<br>") +"</p>\n");
             }
             writer.write("</div>\n<hr>\n\n");
         } catch (IOException e) {
@@ -582,7 +596,7 @@ public class PExportToHTML {
 
         // Collect any external parents first since they never have any parents of their own
         for (EtyExternalParent extPar : _core.getEtymologyManager().getWordExternalParents(wordID)) {
-            node.getParents().add(new EtyTreeNode(extPar.toString()));
+            node.getParents().add(new EtyTreeNode("<span class=\"locallang\"><p class=\"extlang\">" + extPar.getExternalLanguage() +"</p><p>" + extPar.getValue() + "</p><i>" + extPar.getDefinition() + "</i></span>"));
         }
 
         // In-language parents need to be gone through recursively
@@ -610,14 +624,14 @@ public class PExportToHTML {
      * @throws IOException
      */
     private static void renderFullTree(EtyTreeNode root) throws IOException {
-        writer.write("<div class=\"branch\">\n");
+        writer.write("<div class=\"branch tree\">\n");
 
         if (!root.getParents().isEmpty()) {
             renderBranchGroup(root.getParents(), true);
             writer.write("<div class=\"stem\"></div>\n");
         }
 
-        writer.write("<div class=\"node\"><b>" + root.getLabel() + "</b></div>\n");
+        writer.write("<div class=\"node conlang\"><b>" + root.getLabel() + "</b></div>\n");
 
         if (!root.getChildren().isEmpty()) {
             writer.write("<div class=\"stem\"></div>\n");
@@ -651,7 +665,7 @@ public class PExportToHTML {
      */
     private static void renderBranch(EtyTreeNode node, boolean parents) throws IOException {
         List<EtyTreeNode> next = parents ? node.getParents() : node.getChildren();
-        String nodeHtml = "<div class=\"node\">"
+        String nodeHtml = "<div class=\"node conlang\">"
                 + node.getLabel() + "</div>\n";
 
         writer.write("<div class=\"branch\">\n");

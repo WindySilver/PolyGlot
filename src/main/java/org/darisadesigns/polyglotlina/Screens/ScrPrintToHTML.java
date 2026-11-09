@@ -308,11 +308,12 @@ public class ScrPrintToHTML extends PDialog {
         chkPrintPhrases.setText("Export Phrases");
         chkPrintPhrases.setToolTipText("Includes a phrasebook section within the HTML");
 
-        chkEmbedCon.setSelected(false);
+        // My browser can't access my fonts because of sandboxing (I guess), so I'm letting these be true by default to make things easier for myself
+        chkEmbedCon.setSelected(true);
         chkEmbedCon.setText("Embed conlang font (see tooltip for more info)");
         chkEmbedCon.setToolTipText("Works only if you have changed the font from the default. Dramatically increases file size, so only recommended for necessary fonts like custom fonts. Standard fonts like Times New Roman may work if this option is unchecked, provided the user has the font installed on their system and their viewing software has access to their fonts");
 
-        chkEmbedLoc.setSelected(false);
+        chkEmbedLoc.setSelected(true);
         chkEmbedLoc.setText("Embed local language's font (see tooltip for more info)");
         chkEmbedLoc.setToolTipText("Works only if you have changed the font from the default. Dramatically increases file size, so only recommended for necessary fonts like custom fonts. Standard fonts like Times New Roman may work if this option is unchecked, provided the user has the font installed on their system and their viewing software has access to their fonts");
 
