@@ -309,12 +309,12 @@ public class ScrPrintToHTML extends PDialog {
         chkPrintPhrases.setToolTipText("Includes a phrasebook section within the HTML");
 
         chkEmbedCon.setSelected(false);
-        chkEmbedCon.setText("Embed conlang font (recommended only for custom fonts)");
-        chkEmbedCon.setToolTipText("Works only if you have changed the font from the default. Dramatically increases file size, so only recommended for custom fonts. Standard fonts like Times New Roman will still work if this option is unchecked, provided the user has the font installed on their system");
+        chkEmbedCon.setText("Embed conlang font (see tooltip for more info)");
+        chkEmbedCon.setToolTipText("Works only if you have changed the font from the default. Dramatically increases file size, so only recommended for necessary fonts like custom fonts. Standard fonts like Times New Roman may work if this option is unchecked, provided the user has the font installed on their system and their viewing software has access to their fonts");
 
         chkEmbedLoc.setSelected(false);
-        chkEmbedLoc.setText("Embed local language's font (recommended only for custom fonts)");
-        chkEmbedLoc.setToolTipText("Works only if you have changed the font from the default. Dramatically increases file size, so only recommended for custom fonts. Standard fonts like Times New Roman will still work if this option is unchecked, provided the user has the font installed on their system");
+        chkEmbedLoc.setText("Embed local language's font (see tooltip for more info)");
+        chkEmbedLoc.setToolTipText("Works only if you have changed the font from the default. Dramatically increases file size, so only recommended for necessary fonts like custom fonts. Standard fonts like Times New Roman may work if this option is unchecked, provided the user has the font installed on their system and their viewing software has access to their fonts");
 
         lstChapOrder.setModel(new javax.swing.AbstractListModel<String>() {
             String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };

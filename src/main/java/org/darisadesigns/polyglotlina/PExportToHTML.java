@@ -121,7 +121,7 @@ public class PExportToHTML {
             writer.write("    <meta charset=\"UTF-8\">\n");
             writer.write("    <title>" + _mainTitle +"</title>\n");
             // TODO: Styling
-            writer.write("    <style>body{font-family:sans-serif;}" +
+            writer.write("    <style>body{}" +
             "#frontpage{text-align: center;}" +
             "#TOC * {list-style-type: none;}" +
             "table, th, td {border: 1px solid; border-collapse: collapse; text-align: center;}" +
@@ -201,26 +201,23 @@ public class PExportToHTML {
         /* Update3: Fonts with bolding and italics in their name (e.g. Times New Roman or Open Sans) seem to work all the time at least to some degree (YMMV depending on font),
         probably because the font name points to the right styling, so locallang's style being set plain somewhere doesn't matter. Seems like a logic error in setting the locallang's fontstyle.
         A super low-priority thing to fix since you should be selecting font files directly instead of OS selection but it's been bothering me enough that I keep returning to this issue.
-        This is as far as I'll go with this, though. Might add a more detailed explanation of this behavior into OS selection window for future new users.
-        TODO: Rework the font styling to use font name, scrap the italics and bolding stuff and update font embed tooltips */
+        This is as far as I'll go with this, though. Might add a more detailed explanation of this behavior into OS selection window for future new users. */
         // TODO for someone who cares enough to deep-dive into fonts: Fix the aforementioned logic error with locallang fontstyle
-        String conName = con.getFontName(java.util.Locale.US).toLowerCase();
-        String locName = loc.getFontName(java.util.Locale.US).toLowerCase();
 
         // Embed fonts if options for that were selected and the fonts have been cached (in other words, changed from default)
         // Very low-priority TODO for someone who wants to embed the Charis font: Embed default font. Location: UNICODE_FONT_LOCATION
         if (conB && _core.getPropertiesManager().getCachedFont() != null){
-            ret = "@font-face {\nfont-family: '" + con.getFamily() + "';\n";
+            ret = "@font-face {\nfont-family: '" + con.getFontName() + "';\n";
             ret = ret + "src: url('data:font/woff2;charset=utf-8;base64," + Base64.getEncoder().encodeToString(_core.getPropertiesManager().getCachedFont()) + "') format('woff2');}\n";
         }
         if (locB && _core.getPropertiesManager().getCachedLocalFont() != null){
-            ret = ret + "@font-face {\nfont-family: '" + loc.getFamily() + "';\n";
+            ret = ret + "@font-face {\nfont-family: '" + loc.getFontName() + "';\n";
             ret = ret + "src: url('data:font/woff2;charset=utf-8;base64," + Base64.getEncoder().encodeToString(_core.getPropertiesManager().getCachedLocalFont()) + "') format('woff2');}\n";
         }
 
         // Build the conlang and locallang styles
-        ret = ret + ".conlang {font-family: " + con.getFamily() + "; font-size: " + con.getSize() + "px;" +  ((conB && _core.getPropertiesManager().getCachedFont() != null) ? "" : "font-weight: " + ((conName.contains("bold") || con.isBold()) ? "bold" : "normal") + "; font-style: " + ((conName.contains("italic") || con.isItalic()) ? "italic" : "normal") + ";") + "}\n";
-        ret = ret + ".locallang {font-family: " + loc.getFamily() + "; font-size: " + loc.getSize() + "px;" + ((locB && _core.getPropertiesManager().getCachedLocalFont() != null) ? "" : "font-weight: " + ((locName.contains("bold") || loc.isBold()) ? "bold" : "normal") + "; font-style: " + ((locName.contains("italic") || loc.isItalic()) ? "italic" : "normal") + ";") + "}\n";
+        ret = ret + ".conlang {font-family: \"" + con.getFontName() + "\"; font-size: " + con.getSize() + "px;}\n";
+        ret = ret + ".locallang {font-family: \"" + loc.getFontName() + "\"; font-size: " + loc.getSize() + "px;}\n";
 
         return ret;
     }
