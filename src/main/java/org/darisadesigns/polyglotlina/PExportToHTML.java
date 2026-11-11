@@ -86,7 +86,7 @@ public class PExportToHTML {
     private static final Pattern IMG_PATTERN_GRAMMAR = Pattern.compile("<img\\s+src=\"(\\d+);\">");
     private static final Pattern IMG_PATTERN_OTHERS = Pattern.compile("<img\\s+src=\"(\\d+)\">");
 
-    public static void exportHTML(String txtSavePath, String txtForeword, boolean chkConLocal, boolean chkLocalCon, boolean chkOrtho, String txtSubtitle, String txtTitle, boolean chkGloss, boolean chkGrammar, boolean chkEtymology, boolean chkPrintConjugations, boolean chkPrintPhrases, boolean chkEmbedCon, boolean chkEmbedLoc, String chapterOrder, DictCore core) throws IOException {
+    public static void exportHTML(String txtSavePath, String txtForeword, boolean chkConLocal, boolean chkLocalCon, boolean chkOrtho, String txtSubtitle, String txtTitle, boolean chkGloss, boolean chkGrammar, boolean chkEtymology, boolean chkPrintConjugations, boolean chkPrintPhrases, boolean chkEmbedCon, boolean chkEmbedLoc, String chapterOrder, DictCore core) throws IOException, IllegalArgumentException, Exception {
         // Set up received parameters to private variables to make calling each builder function neater
         _txtForeword = txtForeword;
         _chkConLocal = chkConLocal;
@@ -100,6 +100,9 @@ public class PExportToHTML {
         _chkPrintPhrases = chkPrintPhrases;
         _chapterOrder = chapterOrder;
         _core = core;
+ 
+        // Reset posNames in case this not the first export
+        posNames = null;
         
         Path filePath = Paths.get(txtSavePath);
 
@@ -111,6 +114,10 @@ public class PExportToHTML {
         _mainTitle = txtTitle.length() > 0 ? txtTitle : _conlangName;
 
         try {
+            // Check that data is valid before starting to exporting
+            validateData();
+
+            // If data is valid, start exporting
             writer = Files.newBufferedWriter(filePath);
             
             // Put the fonts into CSS format, including encoding for embedding them if need be (embedding is necessary for custom fonts like the one used by the example language Lodenkur)
@@ -155,41 +162,88 @@ public class PExportToHTML {
             ".item.only::after  { display: none; }" +
             "</style>\n");
             writer.write("<script>function openAll() {document.body.querySelectorAll('details')" +
-                ".forEach((e) => {(e.hasAttribute('open')) ?" +
-                "e.removeAttribute('open') : e.setAttribute('open',true);" +
+                ".forEach((e) => {e.open = true;" +
                 "})}" +
                 "function closeAll() {document.body.querySelectorAll('details')" +
-                ".forEach((e) => {(e.hasAttribute('open')) ?" +
-                "e.removeAttribute('open') : e.setAttribute('open',false);" +
+                ".forEach((e) => {e.open = false;" +
                 "})}" +
                 "</script>");
             writer.write("</head>\n<body>\n");
+
             buildFrontPage();
             
             buildTOC();
 
-            if(_txtForeword.length() > 0) buildForeword();
+            if(_txtForeword.trim().length() > 0) buildForeword();
 
-            if(_chkOrtho) buildOrthography();
+            // Chapter order is given as a int ID list formatted as String
+            int[] order = Arrays.stream(_chapterOrder.split(","))
+                .mapToInt(Integer::parseInt)
+                .toArray();
 
-            if(_chkGloss) buildGlossKey();
-
-            if (_chkLocalCon) buildLocalToCon();
-
-            if(_chkConLocal) buildConToLocal();
-
-            if (_chkPrintPhrases) buildPhrases();
-
-            if (_chkGrammar) buildGrammar();
+            for (int i : order){
+                switch (i) {
+                    case PGTUtil.CHAP_ORTHOGRAPHY:
+                        if (_chkOrtho) buildOrthography();
+                        break;
+                    case PGTUtil.CHAP_GLOSSKEY:
+                        if (_chkGloss) buildGlossKey();
+                        break;
+                    case PGTUtil.CHAP_LOCALTOCON:
+                        if (_chkLocalCon) buildLocalToCon();
+                        break;
+                    case PGTUtil.CHAP_CONTOLOCAL:
+                        if (_chkConLocal) buildConToLocal();
+                        break;
+                    case PGTUtil.CHAP_PHRASEBOOK:
+                        if (_chkPrintPhrases) buildPhrases();
+                        break;
+                    case PGTUtil.CHAP_GRAMMAR:
+                        if (_chkGrammar) buildGrammar();
+                        break;
+                    default:
+                        throw new IllegalArgumentException("Unrecognized chapter key: " + i);
+                }
+            }
 
             // Close the HTML file
             writer.write("    \n</body>\n</html>");
             writer.close();
 
         } catch (IOException e) {
-            System.err.println("Error while exporting dictionary: " + e.getMessage());
+            throw new IOException("Error while exporting dictionary: " + e.getMessage());
+        } catch (IllegalArgumentException e){
+            throw new IllegalArgumentException("Error while exporting dictionary: " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("Error while exporting dictionary: " + e.getMessage());
+            throw new Exception("Error while exporting dictionary: " + e.getMessage());
+        } finally {
+            if (writer != null) writer.close();
+        }
+    }
+
+    private static void validateData() throws IllegalArgumentException, Exception{
+        // Validate chapter order. The only variance is order of chapter IDs, so this only fails validation if someone has messed with relevant code.
+        // The default ordering is "0,1,2,3,4,5". Check for length and contents
+        int[] order = Arrays.stream(_chapterOrder.split(","))
+                .mapToInt(Integer::parseInt)
+                .toArray();
+        if (order.length != 6) throw new IllegalArgumentException("Number of chapters in the ordering is wrong. Check changes in the code.");
+
+        for (int i : order) if (i != PGTUtil.CHAP_ORTHOGRAPHY && i != PGTUtil.CHAP_GLOSSKEY && i != PGTUtil.CHAP_LOCALTOCON && i != PGTUtil.CHAP_CONTOLOCAL
+            && i != PGTUtil.CHAP_PHRASEBOOK && i != PGTUtil.CHAP_GRAMMAR) throw new IllegalArgumentException("Unrecognized chapter key: " + i);
+
+        // If printing con to local dictionary, check that all conwords have a value. Without it, ordering this is impossible
+        if (_chkConLocal){
+            for (ConWord curWord : _core.getWordCollection().getWordNodes()){
+                if (curWord.getValue().length() == 0) throw new Exception("Cannot print con to local dictionary because the conword for " + curWord.getLocalWord() + " is empty");
+            }
+        }
+
+        // If printing local to con dictionary, check that all local words have a value. Without it, ordering this is impossible
+        if (_chkLocalCon){
+            for (ConWord curWord : _core.getWordCollection().getNodesLocalOrder()){
+                if (curWord.getLocalWord().length() == 0) throw new Exception("Cannot print local to con dictionary because the local word for " + curWord.getValue() + " is empty");
+            }
         }
     }
 
@@ -226,7 +280,7 @@ public class PExportToHTML {
         return ret;
     }
 
-    private static void buildFrontPage(){
+    private static void buildFrontPage() throws IOException{
         try{
             String author = _core.getPropertiesManager().getCopyrightAuthorInfo();
             writer.write("<div id=\"frontpage\">");
@@ -235,11 +289,11 @@ public class PExportToHTML {
             if (author.length() > 0) writer.write("<p>" + encodeImages(WebInterface.archiveHTML(author, _core), IMG_PATTERN_OTHERS) + "</p>");
             writer.write("</div>\n<hr>\n\n");
         } catch (IOException e) {
-            System.err.println("Error while building front page: " + e.getMessage());
+            throw new IOException("Error while building front page: " + e.getMessage());
         }
     }
 
-    private static void buildTOC(){
+    private static void buildTOC() throws IOException, IllegalArgumentException{
         try{
             // Chapter order is given as a int ID list formatted as String
             int[] order = Arrays.stream(_chapterOrder.split(","))
@@ -253,7 +307,7 @@ public class PExportToHTML {
             }
             writer.write("<ul>\n");
 
-            if (_txtForeword.length() > 0) writer.write("<li><a href=\"#" + forewordLink + "\">" + forewordTitle + "</a></li>\n");
+            if (_txtForeword.trim().length() > 0) writer.write("<li><a href=\"#" + forewordLink + "\">" + forewordTitle + "</a></li>\n");
 
             for (int i : order){
                 switch (i) {
@@ -292,23 +346,23 @@ public class PExportToHTML {
         }
             writer.write("</ul></div>\n<hr>\n\n");
         } catch (IOException e) {
-            System.err.println("Error while building table of contents: " + e.getMessage());
+            throw new IOException("Error while building table of contents: " + e.getMessage());
         } catch (IllegalArgumentException e){
-            System.err.println("Error while building table of contents: " + e.getMessage());
+            throw new IllegalArgumentException("Error while building table of contents: " + e.getMessage());
         }
     }
 
-    private static void buildForeword(){
+    private static void buildForeword() throws IOException{
         try{
             writer.write("<div id=\"foreword\"><h2 id=\""+ forewordLink + "\">" + forewordTitle + "</h2>\n");
             _txtForeword = encodeImages(WebInterface.archiveHTML(_txtForeword.replaceAll("\n", "<br>"), _core), IMG_PATTERN_OTHERS);
             writer.write("<p>" + _txtForeword + "</p></div>\n<hr>\n\n");
         } catch (IOException e) {
-            System.err.println("Error while building foreword: " + e.getMessage());
+            throw new IOException("Error while building foreword: " + e.getMessage());
         }
     }
 
-    private static void buildOrthography(){
+    private static void buildOrthography() throws IOException{
         try{
             writer.write("<div id=\"orthography\"><h2 id=\""+ orthoTitle + "\">" + orthoTitle + "</h2>\n");
             // If orthography uses regex, the text about it needs to come before the table,
@@ -319,7 +373,7 @@ public class PExportToHTML {
 
             for (PronunciationNode curNode : _core.getPronunciationMgr().getPronunciations()) {
                 // Check for regex usage
-                if(curNode.getValue().contains("$") || curNode.getValue().contains("^")) usesRegex = true;
+                if(curNode.getValue().endsWith("$") || curNode.getValue().startsWith("^")) usesRegex = true;
                 // Build the next table row
                 tableBuilding = tableBuilding + "<tr>\n<td class=\"conlang\">" + isolateRegex(curNode.getValue()) + "</td>\n<td class=\"locallang\">" + curNode.getPronunciation() + "</td>\n</tr>\n";
              }
@@ -327,19 +381,19 @@ public class PExportToHTML {
             if(usesRegex) writer.write("<p>Symbols $ and ^ indicate that elements of orthography must appear at the beginning or the end of a word.</p>\n");
             writer.write(tableBuilding + "\n</table></div>\n<hr>\n\n");
         } catch (IOException e) {
-            System.err.println("Error while building orthography: " + e.getMessage());
+            throw new IOException("Error while building orthography: " + e.getMessage());
         }
     }
 
     // Isolates regex characters from the conlang font class
     private static String isolateRegex(String pronunciation){
         String ret = pronunciation;
-        if(ret.contains("^")) ret = "<span class=\"locallang\">^</span>" + ret.substring(1);
-        if(ret.contains("$")) ret = ret.substring(0, ret.length()-1) + "<span class=\"locallang\">$</span>";
+        if(ret.startsWith("^")) ret = "<span class=\"locallang\">^</span>" + ret.substring(1);
+        if(ret.endsWith("$")) ret = ret.substring(0, ret.length()-1) + "<span class=\"locallang\">$</span>";
         return ret;
     }
 
-    private static void buildGlossKey(){
+    private static void buildGlossKey() throws IOException{
         try{
             writer.write("<div id=\"gloss\"><h2 id=\""+ glossLink + "\">" + glossTitle + "</h2>");
             writer.write("<table>\n<tr>\n<th><b>Part of Speech</b></th>\n<th><b>Gloss</b></th>\n</tr>\n");
@@ -350,26 +404,28 @@ public class PExportToHTML {
              }
             writer.write("\n</table></div>\n<hr>\n\n");
         } catch (IOException e) {
-            System.err.println("Error while building gloss key: " + e.getMessage());
+            throw new IOException("Error while building gloss key: " + e.getMessage());
         }
     }
 
-    private static void buildConToLocal() throws Exception {
+    private static void buildConToLocal()  throws IOException, Exception {
         try{
             if (posNames == null) fetchPOS();
             writer.write("<div id=\"conLocal\"><h2 id=\""+ conToLocalLink + "\">" + conToLocalTitle + "</h2>\n");
 
             String activeLetter = "";
+            String curLetter = "";
             for (ConWord curWord : _core.getWordCollection().getWordNodes()) {
 
                 // Build letter sectioning when active first letter changes
-                if (!curWord.getValue().substring(0,1).equals(activeLetter)){
-                    activeLetter = curWord.getValue().substring(0,1);
+                curLetter = firstLetter(curWord.getValue(), true);
+                if (!curLetter.equals(activeLetter)){
+                    activeLetter = curLetter;
                     writer.write("<h3 id=\"con-" + activeLetter + "\"><u><b class=\"conlang\">" + activeLetter +"</b> words</u></h3>\n\n");
                 }
 
                 // Build singular dictionary entry
-                writer.write("<div class=\"dictEntry\"><h4 id=\"" + curWord.getValue().replaceAll(" ", "").replaceAll("'", "") + "\" class=\"conlang\">" + curWord.getValue() + "</h4>\n");
+                writer.write("<div class=\"dictEntry\"><h4 id=\"" + curWord.getId() + "_" + curWord.getValue().replaceAll(" ", "_").replaceAll("'", "_") + "\" class=\"conlang\">" + curWord.getValue() + "</h4>\n");
 
                 // If word has part of speech and/or pronunciation, write them (for formatting reasons, handle "both" and "just one" cases separately)
                 if (posNames.containsKey(curWord.getWordTypeId()) && curWord.getPronunciation().length() > 0) writer.write("<p>" + posNames.get(curWord.getWordTypeId()) + " - /" + curWord.getPronunciation() + "/" + "</p>\n");
@@ -425,27 +481,29 @@ public class PExportToHTML {
 
             writer.write("</div>\n<hr>\n\n");
         } catch (IOException e) {
-            System.err.println("Error while building conlang to local dictionary: " + e.getMessage());
+            throw new IOException("Error while building conlang to local dictionary: " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("Error while building conlang to local dictionary: " + e.getMessage());
+            throw new IOException("Error while building conlang to local dictionary: " + e.getMessage());
         }
     }
     
-    private static void buildLocalToCon() {
+    private static void buildLocalToCon() throws IOException, Exception {
         try{
             if (posNames == null) fetchPOS();
             writer.write("<div id=\"localCon\"><h2 id=\""+ localToConLink + "\">" + localToConTitle + "</h2>\n");
             
             String activeLetter = "";
+            String curLetter = "";
             for (ConWord curWord : _core.getWordCollection().getNodesLocalOrder()) {
                 // Build letter sectioning when active first letter changes
-                if (!curWord.getLocalWord().substring(0,1).equals(activeLetter)){
-                    activeLetter = curWord.getLocalWord().substring(0,1);
+                curLetter = firstLetter(curWord.getLocalWord(), false);
+                if (!curLetter.equals(activeLetter)){
+                    activeLetter = curLetter;
                     writer.write("<h3 id=\"loc-" + activeLetter + "\"><u><b class=\"locallang\">" + activeLetter +"</b> words</u></h3>\n\n");
                 }
 
                 // Build singular dictionary entry
-                writer.write("<div class=\"dictEntry\"><h4 id=\"" + curWord.getLocalWord().replaceAll(" ", "").replaceAll("'", "") + "\" class=\"locallang\">" + curWord.getLocalWord() + "</h4><br>\n");
+                writer.write("<div class=\"dictEntry\"><h4 id=\"" + curWord.getId() + "_" + curWord.getLocalWord().replaceAll(" ", "_").replaceAll("'", "_") + "\" class=\"locallang\">" + curWord.getLocalWord() + "</h4><br>\n");
                 writer.write("<p class=\"conlang\">" + curWord.getValue() + "</p>\n");
                 
                 // If word has part of speech and/or pronunciation, write them (for formatting reasons, handle "both" and "just one" cases separately)
@@ -496,13 +554,13 @@ public class PExportToHTML {
             
             writer.write("</div>\n<hr>\n\n");
         } catch (IOException e) {
-            System.err.println("Error while building locallang to conlang dictionary: " + e.getMessage());
+            throw new IOException("Error while building locallang to conlang dictionary: " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("Error while building locallang to conlang dictionary: " + e.getMessage());
+            throw new IOException("Error while building locallang to conlang dictionary: " + e.getMessage());
         }
     }
 
-    private static void buildPhrases() {
+    private static void buildPhrases() throws IOException {
         try{
             writer.write("<div id=\"phrasebook\"><h2 id=\""+ phraseTitle + "\">" + phraseTitle + "</h2>\n");
 
@@ -525,11 +583,11 @@ public class PExportToHTML {
             }
             writer.write("</div>\n<hr>\n\n");
         } catch (IOException e) {
-            System.err.println("Error while building phrasebook: " + e.getMessage());
+            throw new IOException("Error while building phrasebook: " + e.getMessage());
         }
     }
 
-    private static void buildGrammar(){
+    private static void buildGrammar() throws IOException{
         try{
             writer.write("<div id=\"grammar\"><h2 id=\""+ grammarTitle + "\">" + grammarTitle + "</h2>\n");
             int subheaders = 1;
@@ -548,18 +606,18 @@ public class PExportToHTML {
             }
             writer.write("</div>\n<hr>\n\n");
         } catch (IOException e) {
-            System.err.println("Error while building grammar: " + e.getMessage());
+            throw new IOException("Error while building grammar: " + e.getMessage());
         }
     }
 
     // Collect the labels of Parts of Speech together for building a dictionary to minimize looking up their names
-    private static void fetchPOS(){
+    private static void fetchPOS() throws IllegalStateException{
         // A HashMap seems to be the best way to build a POS list since IDs can be larger than the number of POS
         try {
             posNames = Arrays.stream(_core.getTypes().getNodes())
             .collect(Collectors.toMap(TypeNode::getId, t -> t.getGloss().length() > 0 ? t.getGloss() : t.getValue()));
         } catch (IllegalStateException e){
-            System.err.println("Error while working with parts of speech: " + e.getMessage());
+            throw new IllegalStateException("Error while working with parts of speech: " + e.getMessage());
         }
     }
 
@@ -570,7 +628,7 @@ public class PExportToHTML {
     }
 
 
-    private static void buildConJugations(ConWord curWord) throws IOException {
+    private static void buildConJugations(ConWord curWord) throws IOException, Exception {
         for (ConjugationPair curPair : _core.getConjugationManager().getAllCombinedIds(curWord.getWordTypeId())) {
             ConjugationNode curNode = _core.getConjugationManager().getConjugationByCombinedId(curWord.getId(), curPair.combinedId);
 
@@ -582,7 +640,7 @@ public class PExportToHTML {
                 try {
                     declension = _core.getConjugationManager().declineWord(curWord, curPair.combinedId);
                 } catch (Exception e) {
-                    System.err.println("Problem generating " + curPair.label + " due to bad regex. Please check regex for word form.");
+                    throw new Exception("Problem generating " + curPair.label + " due to bad regex. Please check regex for word form.");
                 }
             }
             writer.write("<p>" + curPair.label + ": <span class=\"conlang\">" + declension + "</span></p>\n");
@@ -590,9 +648,10 @@ public class PExportToHTML {
     }
 
     private static EtyTreeNode collectParents(int wordID) {
-
-        EtyTreeNode node = new EtyTreeNode("<a href=\"#" + _core.getWordCollection().getNodeById(wordID).getValue().replaceAll(" ", "").replaceAll("'", "") + "\">" +
+        EtyTreeNode node;
+        if (_chkConLocal) node = new EtyTreeNode("<a href=\"#" + _core.getWordCollection().getNodeById(wordID).getId() + "_" + _core.getWordCollection().getNodeById(wordID).getValue().replaceAll(" ", "_").replaceAll("'", "_") + "\">" +
         _core.getWordCollection().getNodeById(wordID).getValue() + "</a>");
+        else node = new EtyTreeNode(_core.getWordCollection().getNodeById(wordID).getValue());
 
         // Collect any external parents first since they never have any parents of their own
         for (EtyExternalParent extPar : _core.getEtymologyManager().getWordExternalParents(wordID)) {
@@ -608,8 +667,10 @@ public class PExportToHTML {
     }
 
     private static EtyTreeNode collectChildren(int wordID) {
-        EtyTreeNode node = new EtyTreeNode("<a href=\"#" + _core.getWordCollection().getNodeById(wordID).getValue().replaceAll(" ", "").replaceAll("'", "") + "\">" +
+        EtyTreeNode node;
+        if (_chkConLocal) node = new EtyTreeNode("<a href=\"#" + _core.getWordCollection().getNodeById(wordID).getId() + "_" + _core.getWordCollection().getNodeById(wordID).getValue().replaceAll(" ", "_").replaceAll("'", "_") + "\">" +
         _core.getWordCollection().getNodeById(wordID).getValue() + "</a>");
+        else node = new EtyTreeNode(_core.getWordCollection().getNodeById(wordID).getValue());
 
         for (Integer childID : _core.getEtymologyManager().getChildren(wordID)) {
             node.getChildren().add(collectChildren(childID));
@@ -722,8 +783,8 @@ public class PExportToHTML {
         // Styling
         String conFont = _core.getPropertiesManager().getFontConFamily();
         String locFont = _core.getPropertiesManager().getFontLocalFamily();
-        ret = ret.replaceAll("face=\"" + conFont + "\"", "class=\"conlang\" ")
-                 .replaceAll("face=\"" + locFont + "\"", "class=\"locallang\" ")
+        ret = ret.replaceAll("face=\"" + Pattern.quote(conFont) + "\"", "class=\"conlang\" ")
+                 .replaceAll("face=\"" + Pattern.quote(locFont) + "\"", "class=\"locallang\" ")
                  .replaceAll("size=\"", "style=\"font-size: ")
                  .replaceAll("\"color=\"", "px; color:")
                  .replaceAll("\">", ";\">");
@@ -775,6 +836,38 @@ public class PExportToHTML {
         return sb.toString();
     }
 
+    /**
+     * Determines the letter a word is filed under in the dictionary.
+     * @param word The word being filed
+     * @param useConAlpha Use conlang alphabet (conlang) or fallback (local lang or missing alphabet) to determine first letter
+     * @return The letter the word belongs under, or "" for a null/empty word
+     */
+    private static String firstLetter(String word, boolean useConAlpha) {
+        if (word == null || word.isEmpty()) return "";
+        String[] alphabet = _core.getPropertiesManager().getOrderedAlphaList();
+    
+        // Check if the language's alphabet (if it exists) has the first letter of the word. The first one to come up is the correct one
+        if (alphabet.length > 0 && useConAlpha) {
+            for (String letter : alphabet) {
+                if (word.startsWith(letter)) return letter;
+            }
+        }
+    
+        // Fallback: first code point (so surrogate pairs stay whole) plus attached combining marks
+        int end = word.offsetByCodePoints(0, 1);
+        while (end < word.length()) {
+            int codePoint = word.codePointAt(end);
+            int type = Character.getType(codePoint);
+            if (type != Character.NON_SPACING_MARK
+                    && type != Character.COMBINING_SPACING_MARK
+                    && type != Character.ENCLOSING_MARK) {
+                break;
+            }
+            end += Character.charCount(codePoint);
+        }
+        return word.substring(0, end);
+    }
+    
     // Helper to escape special characters (&, <, >, ", ') to ensure nothing breaks when the export is displayed on ebook readers
     // Currently unused since the Calibre ebook reader seems to handle these characters fine as-is, but I'll leave this here in case need for it arises 
     private static String escapeHTML(String text) {

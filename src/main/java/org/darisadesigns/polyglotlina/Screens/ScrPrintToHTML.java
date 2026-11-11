@@ -570,6 +570,9 @@ public class ScrPrintToHTML extends PDialog {
         } catch (IOException e) {
             DesktopIOHandler.getInstance().writeErrorLog(e);
             core.getOSHandler().getInfoBox().error("Save Error", e.getMessage());
+        } catch (Exception e) {
+            DesktopIOHandler.getInstance().writeErrorLog(e);
+            core.getOSHandler().getInfoBox().error("Save Error", e.getMessage());
         } finally {
             this.setCursor(Cursor.getDefaultCursor());
         }
