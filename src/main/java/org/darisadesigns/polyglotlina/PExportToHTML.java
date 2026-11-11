@@ -369,7 +369,7 @@ public class PExportToHTML {
                 }
 
                 // Build singular dictionary entry
-                writer.write("<div class=\"dictEntry\"><h4 id=\"" + curWord.getValue().replaceAll(" ", "") + "\" class=\"conlang\">" + curWord.getValue() + "</h4>\n");
+                writer.write("<div class=\"dictEntry\"><h4 id=\"" + curWord.getValue().replaceAll(" ", "").replaceAll("'", "") + "\" class=\"conlang\">" + curWord.getValue() + "</h4>\n");
 
                 // If word has part of speech and/or pronunciation, write them (for formatting reasons, handle "both" and "just one" cases separately)
                 if (posNames.containsKey(curWord.getWordTypeId()) && curWord.getPronunciation().length() > 0) writer.write("<p>" + posNames.get(curWord.getWordTypeId()) + " - /" + curWord.getPronunciation() + "/" + "</p>\n");
@@ -445,7 +445,7 @@ public class PExportToHTML {
                 }
 
                 // Build singular dictionary entry
-                writer.write("<div class=\"dictEntry\"><h4 id=\"" + curWord.getLocalWord().replaceAll(" ", "") + "\" class=\"locallang\">" + curWord.getLocalWord() + "</h4><br>\n");
+                writer.write("<div class=\"dictEntry\"><h4 id=\"" + curWord.getLocalWord().replaceAll(" ", "").replaceAll("'", "") + "\" class=\"locallang\">" + curWord.getLocalWord() + "</h4><br>\n");
                 writer.write("<p class=\"conlang\">" + curWord.getValue() + "</p>\n");
                 
                 // If word has part of speech and/or pronunciation, write them (for formatting reasons, handle "both" and "just one" cases separately)
@@ -591,7 +591,7 @@ public class PExportToHTML {
 
     private static EtyTreeNode collectParents(int wordID) {
 
-        EtyTreeNode node = new EtyTreeNode("<a href=\"#" + _core.getWordCollection().getNodeById(wordID).getValue().replaceAll(" ", "") + "\">" +
+        EtyTreeNode node = new EtyTreeNode("<a href=\"#" + _core.getWordCollection().getNodeById(wordID).getValue().replaceAll(" ", "").replaceAll("'", "") + "\">" +
         _core.getWordCollection().getNodeById(wordID).getValue() + "</a>");
 
         // Collect any external parents first since they never have any parents of their own
@@ -608,7 +608,7 @@ public class PExportToHTML {
     }
 
     private static EtyTreeNode collectChildren(int wordID) {
-        EtyTreeNode node = new EtyTreeNode("<a href=\"#" + _core.getWordCollection().getNodeById(wordID).getValue().replaceAll(" ", "") + "\">" +
+        EtyTreeNode node = new EtyTreeNode("<a href=\"#" + _core.getWordCollection().getNodeById(wordID).getValue().replaceAll(" ", "").replaceAll("'", "") + "\">" +
         _core.getWordCollection().getNodeById(wordID).getValue() + "</a>");
 
         for (Integer childID : _core.getEtymologyManager().getChildren(wordID)) {
@@ -775,12 +775,15 @@ public class PExportToHTML {
         return sb.toString();
     }
 
-    // Helper to escape special characters (<, >, &) in HTML
+    // Helper to escape special characters (&, <, >, ", ') to ensure nothing breaks when the export is displayed on ebook readers
+    // Currently unused since the Calibre ebook reader seems to handle these characters fine as-is, but I'll leave this here in case need for it arises 
     private static String escapeHTML(String text) {
         if (text == null) return "";
         return text.replace("&", "&amp;")
                      .replace("<", "&lt;")
-                     .replace(">", "&gt;");
+                     .replace(">", "&gt;")
+                     .replace("\"", "&quot;")
+                     .replace("'", "&#39;");
     }
 
     
